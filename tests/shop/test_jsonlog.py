@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 
-from shop.jsonlog import JsonFormatter, configure_logging
+from shop.jsonlog import JsonFormatter, configure_logging, request_id_var
 
 
 def make_record(**extra) -> logging.LogRecord:
@@ -32,6 +32,19 @@ def test_extra_fields_become_top_level_keys():
     assert entry["status"] == 409
     assert "args" not in entry
     assert "levelno" not in entry
+
+
+def test_current_request_id_is_added_to_every_line():
+    formatter = JsonFormatter("inventory")
+    token = request_id_var.set("req-42")
+    try:
+        inside = json.loads(formatter.format(make_record()))
+    finally:
+        request_id_var.reset(token)
+    outside = json.loads(formatter.format(make_record()))
+
+    assert inside["request_id"] == "req-42"
+    assert "request_id" not in outside
 
 
 def test_exception_traceback_is_included():

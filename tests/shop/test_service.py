@@ -2,6 +2,7 @@ import logging
 
 from fastapi.testclient import TestClient
 
+from shop.jsonlog import request_id_var
 from shop.service import create_service
 
 
@@ -63,6 +64,19 @@ def test_unhandled_exception_returns_500_and_is_logged(caplog):
     completed = next(r for r in caplog.records if r.getMessage() == "request completed")
     assert completed.status == 500
     assert completed.levelno == logging.ERROR
+
+
+def test_request_id_is_visible_to_route_handlers():
+    app = create_service("testsvc")
+
+    @app.get("/whoami")
+    async def whoami() -> dict[str, str | None]:
+        return {"request_id": request_id_var.get()}
+
+    client = TestClient(app)
+
+    assert client.get("/whoami", headers={"x-request-id": "r-7"}).json() == {"request_id": "r-7"}
+    assert request_id_var.get() is None
 
 
 def test_health_and_metrics_are_not_counted_as_traffic(caplog):

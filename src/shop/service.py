@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 from shop.config import LOG_DIR, PORTS
-from shop.jsonlog import configure_logging
+from shop.jsonlog import configure_logging, request_id_var
 
 REQUESTS = Counter(
     "http_requests_total",
@@ -51,8 +51,14 @@ def create_service(name: str, lifespan: Lifespan | None = None) -> FastAPI:
         # Reuse the caller's request ID so one request can be followed across services.
         request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:16]
         request.state.request_id = request_id
-        context = {"request_id": request_id, "method": request.method, "path": request.url.path}
+        token = request_id_var.set(request_id)
+        try:
+            return await handle(request, call_next, request_id)
+        finally:
+            request_id_var.reset(token)
 
+    async def handle(request: Request, call_next, request_id: str) -> Response:
+        context = {"request_id": request_id, "method": request.method, "path": request.url.path}
         IN_PROGRESS.labels(name).inc()
         start = time.perf_counter()
         try:

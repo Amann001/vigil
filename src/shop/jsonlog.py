@@ -7,9 +7,14 @@ Each log line is one JSON object, so Vigil's Logs agent can filter on fields
 import json
 import logging
 import sys
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+# Set for the duration of each HTTP request, so every log line written while handling it
+# carries the request ID, not only the request summary line.
+request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 # Attributes every LogRecord has. Anything else was passed with `extra=` and becomes a field.
 _STANDARD_ATTRS = set(vars(logging.LogRecord("", 0, "", 0, "", None, None))) | {
@@ -37,6 +42,8 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
+        if (request_id := request_id_var.get()) is not None:
+            entry["request_id"] = request_id
         for key, value in vars(record).items():
             if key not in _STANDARD_ATTRS and not key.startswith("_"):
                 entry[key] = value
