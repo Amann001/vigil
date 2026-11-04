@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -66,6 +68,19 @@ def test_each_app_has_independent_stock():
     first.post("/reserve", json={"sku": "MOUSE-01", "quantity": 50})
 
     assert second.get("/stock/MOUSE-01").json()["available"] == 200
+
+
+def test_background_task_restocks_while_running(monkeypatch):
+    monkeypatch.setattr("shop.inventory.RESTOCK_INTERVAL_SECONDS", 0.05)
+
+    with TestClient(create_app()) as client:  # `with` runs the lifespan, starting the task
+        client.post("/reserve", json={"sku": "MONITOR-27", "quantity": 40})
+        for _ in range(40):
+            if client.get("/stock/MONITOR-27").json()["available"] == 40:
+                break
+            time.sleep(0.05)
+
+        assert client.get("/stock/MONITOR-27").json()["available"] == 40
 
 
 def test_restock_refills_only_low_products():

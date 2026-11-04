@@ -40,6 +40,17 @@ def test_metrics_use_route_template_not_raw_path():
     assert 'route="/items/42"' not in metrics
 
 
+def test_unknown_paths_share_one_metric_label():
+    client = make_client()
+    for path in ("/nope", "/wp-admin", "/a/b/c"):
+        client.get(path)
+
+    metrics = client.get("/metrics").text
+
+    assert 'route="unmatched",service="testsvc",status="404"} 3.0' in metrics
+    assert "wp-admin" not in metrics
+
+
 def test_request_id_is_generated_and_propagated():
     client = make_client()
 
