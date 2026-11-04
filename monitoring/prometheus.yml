@@ -20,3 +20,8 @@ scrape_configs:
         labels: { service: payments }
       - targets: ["127.0.0.1:8003"]
         labels: { service: inventory }
+
+  # Simulated customers: what users experienced (successes, rejections, errors).
+  - job_name: traffic
+    static_configs:
+      - targets: ["127.0.0.1:8010"]
