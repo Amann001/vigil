@@ -2,6 +2,7 @@
 
 Writes to data/datasets/vigil/<campaign start>/:
 - metrics.csv.gz : one row per 5 s, one column per feature, plus incident labels
+- logs.csv.gz    : every service log line with its template key
 - incidents.json : each incident's service, fault, settings and time window
 - meta.json      : the campaign settings and where training data ends
 
@@ -17,9 +18,11 @@ import pandas as pd
 
 from shop.config import DATA_DIR
 from vigil.incidents import incident_windows, label, load_ledger
+from vigil.logevents import read_events
 from vigil.telemetry import PROMETHEUS_URL, fetch_features
 
 CHAOS_DIR = DATA_DIR / "chaos"
+LOG_DIR = DATA_DIR / "logs"
 OUTPUT_DIR = DATA_DIR / "datasets" / "vigil"
 
 
@@ -30,7 +33,9 @@ def campaign_end(meta: dict) -> pd.Timestamp:
     raise ValueError("campaign.json has no end time")
 
 
-def export(chaos_dir: Path, output_dir: Path, client: httpx.Client) -> Path:
+def export(
+    chaos_dir: Path, output_dir: Path, client: httpx.Client, log_dir: Path = LOG_DIR
+) -> Path:
     meta = json.loads((chaos_dir / "campaign.json").read_text(encoding="utf-8"))
     start, end = pd.Timestamp(meta["started_at"]), campaign_end(meta)
     incidents = incident_windows(load_ledger(chaos_dir / "ledger.jsonl"), end)
@@ -41,6 +46,9 @@ def export(chaos_dir: Path, output_dir: Path, client: httpx.Client) -> Path:
     target = output_dir / start.strftime("%Y%m%dT%H%M%SZ")
     target.mkdir(parents=True, exist_ok=True)
     table.to_csv(target / "metrics.csv.gz", float_format="%.6g")
+    events = read_events(log_dir)
+    in_campaign = (events["timestamp"] >= start) & (events["timestamp"] <= end)
+    events[in_campaign].to_csv(target / "logs.csv.gz", index=False)
     (target / "incidents.json").write_text(
         json.dumps(
             [
