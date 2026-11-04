@@ -101,20 +101,41 @@ uv run pytest
 
 # Download Prometheus (pinned version, SHA-256 verified) into bin/
 uv run python scripts/install_prometheus.py
+
+# Start the shop, Prometheus and simulated customers (Ctrl+C stops everything)
+uv run python -m shop.launch
 ```
 
-Each demo shop service can be started on its own, e.g. `uv run python -m shop.inventory`:
+## The demo system
 
-| Service | Port | Role |
+Vigil needs something to watch, so the repository includes a small online shop built as four
+microservices, plus simulated customers and a way to break things on purpose.
+
+| Component | Port | Role |
 |---|---|---|
 | storefront | 8000 | Public API: product listing and checkout |
 | orders | 8001 | Reserves stock, charges payment, rolls back on failure |
 | payments | 8002 | Simulated card processor with realistic latency and declines |
 | inventory | 8003 | Stock levels with periodic restocking |
+| traffic | 8010 | Simulated customers: Poisson arrivals following a compressed daily cycle |
+| Prometheus | 9090 | Scrapes every component every 5 seconds |
 
-Every service exposes `/health`, `/metrics` (Prometheus) and writes structured JSON logs to
-`data/logs/`. Prometheus scrapes all four every 5 seconds using
-[monitoring/prometheus.yml](monitoring/prometheus.yml).
+Every service exposes `/health` and `/metrics`, writes one-line JSON logs to `data/logs/`, and
+propagates a request ID across service calls so one checkout can be traced end to end.
+
+### Breaking things on purpose
+
+```bash
+uv run python -m shop.chaos inject payments latency --latency 1.5 --duration 300
+uv run python -m shop.chaos inject inventory errors --error-rate 0.3
+uv run python -m shop.chaos inject orders leak --leak-rate 10 --leak-limit 600
+uv run python -m shop.chaos inject storefront crash
+uv run python -m shop.chaos status
+```
+
+Faults show up only as the symptoms a real failure would cause (slow requests, 500s, growing
+memory, a dead process); nothing a service logs or exports names the fault. The ground truth is
+recorded separately in `data/chaos/ledger.jsonl` for evaluation and is never shown to the agents.
 
 ## Roadmap
 
