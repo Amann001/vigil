@@ -16,9 +16,9 @@ data.
 
 | Detector | Threshold (training quantile) | Recall | Precision | F1 | False alarm events |
 |---|---|---|---|---|---|
-| Robust z-score | 0.99 | 0.86 | 0.18 | 0.29 | 2214 |
-| Robust z-score | 0.995 | 0.83 | 0.21 | 0.33 | 1409 |
-| Robust z-score | 0.999 | 0.68 | 0.24 | 0.35 | 765 |
+| Robust z-score | 0.99 | 0.86 | 0.17 | 0.29 | 2303 |
+| Robust z-score | 0.995 | 0.83 | 0.20 | 0.33 | 1445 |
+| Robust z-score | 0.999 | 0.68 | 0.24 | 0.35 | 772 |
 | Isolation Forest | 0.99 | 0.88 | 0.18 | 0.29 | 3234 |
 | Isolation Forest | 0.995 | 0.86 | 0.20 | 0.33 | 1807 |
 | Isolation Forest | 0.999 | 0.66 | 0.28 | 0.40 | 459 |

@@ -42,8 +42,15 @@ class RobustZScore:
         values = normal.fillna(FILL_VALUE)
         self.columns = list(values.columns)
         self.median = values.median()
-        mad = (values - self.median).abs().median()
-        self.scale = (1.4826 * mad).clip(lower=self.min_scale)
+        deviations = (values - self.median).abs()
+        # The MAD is 0 for a feature that sits at one value more than half the time, such as
+        # requests in flight (usually 0, sometimes 1). Falling straight to the floor would score
+        # one in-flight request as 1000 deviations and drown real incidents in noise. Following
+        # Iglewicz & Hoaglin's modified z-score, use the mean absolute deviation instead; only a
+        # feature that never moved at all is left with the floor.
+        mad = 1.4826 * deviations.median()
+        mean_ad = 1.2533 * deviations.mean()
+        self.scale = mad.where(mad > 0, mean_ad).clip(lower=self.min_scale)
         return self
 
     def score(self, rows: pd.DataFrame) -> pd.Series:

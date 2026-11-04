@@ -44,6 +44,21 @@ def test_zscore_flags_any_change_in_a_feature_that_never_moved():
     assert scores.iloc[45:].min() > scores.iloc[:45].max()
 
 
+def test_zscore_mostly_constant_feature_does_not_drown_real_anomalies():
+    """Regression: requests in flight are 0 most of the time and occasionally 1, so their MAD is
+    0. With the spread floored at min_scale, one in-flight request scored 1000 and set the alarm
+    threshold, hiding real incidents in the shop data."""
+    train = normal_data()
+    train["in_flight"] = np.where(np.arange(len(INDEX)) % 10 == 0, 1.0, 0.0)
+    detector = RobustZScore().fit(train)
+
+    busy = detector.score(one_row(in_flight=1.0)).iloc[0]
+    slow = detector.score(one_row(in_flight=0.0, latency=2.0)).iloc[0]
+
+    assert busy < 10
+    assert slow > 10 * busy
+
+
 def test_missing_values_read_as_unusual(detector):
     test = normal_data(seed=1).iloc[:50].copy()
     test.iloc[45:] = np.nan  # the service stopped reporting
