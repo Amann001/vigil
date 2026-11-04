@@ -7,13 +7,52 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 
 import httpx
+import psutil
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    PROCESS_COLLECTOR,
+    REGISTRY,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
+from prometheus_client.registry import Collector
 
+from shop import chaos
 from shop.config import LOG_DIR, PORTS
 from shop.jsonlog import configure_logging, request_id_var
+
+
+class ProcessMetrics(Collector):
+    """Memory and CPU of this process, on every OS.
+
+    prometheus_client's built-in process collector only works on Linux; this one exports the
+    same metric names everywhere, so a memory leak is visible on Windows too.
+    """
+
+    def __init__(self) -> None:
+        self.process = psutil.Process()
+
+    def collect(self):
+        memory = self.process.memory_info()
+        cpu = self.process.cpu_times()
+        yield GaugeMetricFamily(
+            "process_resident_memory_bytes", "Resident memory size in bytes.", value=memory.rss
+        )
+        yield CounterMetricFamily(
+            "process_cpu_seconds_total",
+            "Total user and system CPU time.",
+            value=cpu.user + cpu.system,
+        )
+
+
+REGISTRY.unregister(PROCESS_COLLECTOR)
+REGISTRY.register(ProcessMetrics())
 
 REQUESTS = Counter(
     "http_requests_total",
@@ -48,9 +87,9 @@ DEPENDENCY_TIMEOUT_SECONDS = 2.0
 # stopped service looks "slow" instead of "down": on Windows a refused connection takes ~2s.
 CONNECT_TIMEOUT_SECONDS = 0.5
 
-# Not recorded as traffic: Prometheus scrapes /metrics every few seconds and would drown
-# real requests.
-_UNTRACKED_PATHS = {"/metrics", "/health"}
+# Not recorded as traffic: Prometheus scrapes /metrics every few seconds and would drown real
+# requests, and fault-injection calls must never show up where Vigil's agents look.
+_UNTRACKED_PREFIXES = ("/metrics", "/health", chaos.CHAOS_PATH)
 
 Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
@@ -59,10 +98,13 @@ def create_service(name: str, lifespan: Lifespan | None = None) -> FastAPI:
     """Create a FastAPI app with /health, /metrics and per-request metrics and logs."""
     app = FastAPI(title=f"shop-{name}", lifespan=lifespan)
     log = logging.getLogger(f"shop.{name}.http")
+    # Installed first so it runs inside `observe`: injected delays and errors are measured and
+    # logged exactly like real ones.
+    chaos.install(app, name)
 
     @app.middleware("http")
     async def observe(request: Request, call_next):
-        if request.url.path in _UNTRACKED_PATHS:
+        if request.url.path.startswith(_UNTRACKED_PREFIXES):
             return await call_next(request)
 
         # Reuse the caller's request ID so one request can be followed across services.
