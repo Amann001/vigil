@@ -137,6 +137,18 @@ Faults show up only as the symptoms a real failure would cause (slow requests, 5
 memory, a dead process); nothing a service logs or exports names the fault. The ground truth is
 recorded separately in `data/chaos/ledger.jsonl` for evaluation and is never shown to the agents.
 
+## Benchmark datasets
+
+`uv run python scripts/download_datasets.py` fetches both into `data/datasets/`, pinned to an
+exact commit and verified file by file. They are not redistributed in this repository.
+
+- **NAB** (MIT licence): A. Lavin and S. Ahmad, "Evaluating Real-time Anomaly Detection
+  Algorithms: the Numenta Anomaly Benchmark", IEEE ICMLA 2015.
+  [github.com/numenta/NAB](https://github.com/numenta/NAB)
+- **LogHub** (free for research and academic use): J. Zhu, S. He, P. He, J. Liu and M. R. Lyu,
+  "Loghub: A Large Collection of System Log Datasets for AI-driven Log Analytics", IEEE ISSRE 2023.
+  [github.com/logpai/loghub](https://github.com/logpai/loghub)
+
 ## Roadmap
 
 Vigil is under active development. See [docs/ROADMAP.md](docs/ROADMAP.md) for the milestones.
