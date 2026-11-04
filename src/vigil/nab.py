@@ -26,7 +26,11 @@ RESULTS_DIR = DATA_DIR / "results"
 PROBATIONARY_SHARE = 0.15
 ROLLING_POINTS = 12
 QUANTILES = (0.99, 0.995, 0.999)
-DETECTORS = {"robust_zscore": RobustZScore, "isolation_forest": IsolationForestDetector}
+DETECTORS = {
+    "robust_zscore": RobustZScore,
+    "zscore_per_feature": lambda: RobustZScore(per_feature_quantile=0.99),
+    "isolation_forest": IsolationForestDetector,
+}
 
 
 @dataclass(frozen=True)

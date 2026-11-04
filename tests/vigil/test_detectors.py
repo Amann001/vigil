@@ -59,6 +59,34 @@ def test_zscore_mostly_constant_feature_does_not_drown_real_anomalies():
     assert slow > 10 * busy
 
 
+def noisy_and_quiet_training() -> pd.DataFrame:
+    """A noisy feature with occasional big spikes next to a quiet one (memory) that barely moves."""
+    train = normal_data()
+    spikes = np.arange(len(INDEX)) % 50 == 0
+    train["latency"] = np.where(spikes, 1.0, train["latency"])  # 90 deviations, 2% of the time
+    return train
+
+
+def test_plain_zscore_lets_the_noisiest_feature_set_the_bar():
+    detector = RobustZScore().fit(noisy_and_quiet_training())
+    threshold = calibrate_threshold(detector.score(noisy_and_quiet_training()), 0.99)
+
+    leaking = detector.score(one_row(rate=10.0)).iloc[0]  # rate: 10 deviations above normal
+
+    assert leaking < threshold
+
+
+def test_per_feature_zscore_judges_each_feature_by_its_own_noise():
+    train = noisy_and_quiet_training()
+    detector = RobustZScore(per_feature_quantile=0.99).fit(train)
+    threshold = calibrate_threshold(detector.score(train), 0.99)
+
+    leaking = detector.score(one_row(rate=10.0)).iloc[0]
+
+    assert leaking > threshold
+    assert detector.name == "zscore_per_feature"
+
+
 def test_missing_values_read_as_unusual(detector):
     test = normal_data(seed=1).iloc[:50].copy()
     test.iloc[45:] = np.nan  # the service stopped reporting

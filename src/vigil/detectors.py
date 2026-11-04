@@ -31,12 +31,17 @@ class RobustZScore:
     are used instead of mean and standard deviation so outliers in training don't distort them.
     """
 
-    name = "robust_zscore"
-
-    def __init__(self, min_scale: float = 1e-3) -> None:
+    def __init__(self, min_scale: float = 1e-3, per_feature_quantile: float | None = None) -> None:
         # Floor on each feature's spread, so a feature that never moved in training (an error
         # ratio that was always 0) still gets a finite, very large score when it does move.
         self.min_scale = min_scale
+        # The row score is its most extreme feature, so one alarm threshold ends up set by the
+        # noisiest feature: latency percentiles routinely reach 90 deviations, so memory had to
+        # move 90 deviations too and a leak was only caught when the service crashed. With this
+        # option each feature is first divided by its own `per_feature_quantile` of training
+        # deviations, so every feature is judged against its own normal noise.
+        self.per_feature_quantile = per_feature_quantile
+        self.name = "robust_zscore" if per_feature_quantile is None else "zscore_per_feature"
 
     def fit(self, normal: pd.DataFrame) -> Self:
         values = normal.fillna(FILL_VALUE)
@@ -51,12 +56,19 @@ class RobustZScore:
         mad = 1.4826 * deviations.median()
         mean_ad = 1.2533 * deviations.mean()
         self.scale = mad.where(mad > 0, mean_ad).clip(lower=self.min_scale)
+        self.reference = pd.Series(1.0, index=self.columns)
+        if self.per_feature_quantile is not None:
+            # Never below 1, so a very quiet feature is not made more sensitive than plain z.
+            training = self._deviations(values)
+            self.reference = training.quantile(self.per_feature_quantile).clip(lower=1.0)
         return self
 
     def score(self, rows: pd.DataFrame) -> pd.Series:
-        values = rows[self.columns].fillna(FILL_VALUE)
-        z = (values - self.median).abs() / self.scale
+        z = self._deviations(rows[self.columns].fillna(FILL_VALUE)) / self.reference
         return z.max(axis=1).rename(self.name)
+
+    def _deviations(self, values: pd.DataFrame) -> pd.DataFrame:
+        return (values - self.median).abs() / self.scale
 
 
 class IsolationForestDetector:
