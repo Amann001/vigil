@@ -13,6 +13,8 @@ from shop.catalog import PRODUCTS, OrderRequest
 from shop.jsonlog import JsonFormatter
 from shop.service import DEPENDENCY_TIMEOUT_SECONDS, Dependency
 
+STOCK = inventory.INITIAL_STOCK
+
 
 def in_memory(caller: str, name: str, app) -> Dependency:
     return Dependency(caller, name, transport=httpx.ASGITransport(app=app))
@@ -59,7 +61,7 @@ def test_products_include_live_availability(shop):
 
     products = {p["sku"]: p for p in shop.storefront.get("/products").json()}
 
-    assert products["MONITOR-27"]["available"] == 36
+    assert products["MONITOR-27"]["available"] == STOCK["MONITOR-27"] - 4
     assert products["MONITOR-27"]["price_cents"] == 32999
 
 
@@ -74,19 +76,16 @@ def test_successful_checkout(shop):
     assert order["status"] == "confirmed"
     assert order["total_cents"] == 2 * 2999 + 5999
     assert order["payment_id"].startswith("pay-")
-    assert available(shop, "MOUSE-01") == 198
-    assert available(shop, "WEBCAM-01") == 59
+    assert available(shop, "MOUSE-01") == STOCK["MOUSE-01"] - 2
+    assert available(shop, "WEBCAM-01") == STOCK["WEBCAM-01"] - 1
     assert shop.storefront.get(f"/orders/{order['order_id']}").json() == order
 
 
 def test_out_of_stock_releases_items_already_reserved(shop):
-    response = shop.storefront.post(
-        "/checkout",
-        json={"items": [{"sku": "MOUSE-01", "quantity": 5}, {"sku": "MONITOR-27", "quantity": 10}]},
-    )
-    # The second item is fine on its own; drain it first so the order fails part-way.
-    assert response.status_code == 201
-    shop.inventory.post("/reserve", json={"sku": "MONITOR-27", "quantity": 30})
+    # Sell out the second item so the order fails part-way, after the first is reserved.
+    for _ in range(STOCK["MONITOR-27"] // 100):
+        shop.inventory.post("/reserve", json={"sku": "MONITOR-27", "quantity": 100})
+    assert available(shop, "MONITOR-27") == 0
 
     failed = shop.storefront.post(
         "/checkout",
@@ -95,7 +94,7 @@ def test_out_of_stock_releases_items_already_reserved(shop):
 
     assert failed.status_code == 409
     assert failed.json()["detail"]["reason"] == "out_of_stock"
-    assert available(shop, "MOUSE-01") == 195  # the 5 reserved by the failed order came back
+    assert available(shop, "MOUSE-01") == STOCK["MOUSE-01"]  # the 5 reserved came back
     order_id = failed.json()["detail"]["order_id"]
     assert shop.storefront.get(f"/orders/{order_id}").json()["status"] == "failed"
 
@@ -109,7 +108,7 @@ def test_declined_payment_releases_all_stock():
 
     assert response.status_code == 402
     assert response.json()["detail"]["reason"] == "payment_declined"
-    assert available(shop, "HEADSET-01") == 80
+    assert available(shop, "HEADSET-01") == STOCK["HEADSET-01"]
 
 
 def test_unknown_sku_is_rejected_before_reserving(shop):
@@ -212,7 +211,10 @@ def test_payment_timeout_fails_order_with_504_and_releases_stock():
     )
 
     assert response.status_code == 504
-    assert TestClient(inventory_app).get("/stock/KEYBOARD-01").json()["available"] == 120
+    assert (
+        TestClient(inventory_app).get("/stock/KEYBOARD-01").json()["available"]
+        == STOCK["KEYBOARD-01"]
+    )
 
 
 def test_stored_orders_are_bounded(monkeypatch):

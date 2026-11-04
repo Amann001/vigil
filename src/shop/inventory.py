@@ -16,16 +16,18 @@ from shop.service import create_service, run
 NAME = "inventory"
 
 INITIAL_STOCK = {
-    "KEYBOARD-01": 120,
-    "MOUSE-01": 200,
-    "MONITOR-27": 40,
-    "HEADSET-01": 80,
-    "WEBCAM-01": 60,
+    "KEYBOARD-01": 600,
+    "MOUSE-01": 1000,
+    "MONITOR-27": 300,
+    "HEADSET-01": 500,
+    "WEBCAM-01": 400,
 }
 
-# A simulated warehouse delivery tops up low items, so steady traffic never drains the shop.
-RESTOCK_INTERVAL_SECONDS = 30
-RESTOCK_THRESHOLD = 0.2
+# A simulated warehouse delivery tops up items below half their initial level. Sized so that
+# even ~8 checkouts/s never sells out between deliveries: in normal operation "out of stock"
+# should be rare, so a sudden rise in it is a real anomaly rather than background noise.
+RESTOCK_INTERVAL_SECONDS = 10
+RESTOCK_THRESHOLD = 0.5
 
 STOCK_LEVEL = Gauge("inventory_stock_level", "Units in stock per product.", ["sku"])
 
