@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv
+
+# Secrets (never commit real keys; see .env.example)
+.env
+.env.*
+!.env.example
+
+# Local runtime data (metrics, logs, models, datasets)
+data/
+*.log
+*.onnx
+bin/
+
+# Personal planning notes
+*.local.md
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

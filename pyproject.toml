@@ -1,0 +1,38 @@
+[project]
+name = "vigil"
+version = "0.1.0"
+description = "Multi-agent AI on-call engineer: detects, diagnoses and fixes production incidents with a human in the loop."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Amann001", email = "swamyaman3@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/Amann001/vigil"
+
+[project.scripts]
+vigil = "vigil:main"
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
