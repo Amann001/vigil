@@ -85,7 +85,7 @@ Results will be published here as they are produced.
 | Agent orchestration | LangGraph |
 | LLMs | Google Gemini, Groq (provider-agnostic) |
 | Database, vector memory, checkpoints | PostgreSQL + pgvector |
-| ML | scikit-learn, ONNX Runtime, Drain3, fastembed |
+| ML | scikit-learn, PyTorch (CPU, training only), ONNX Runtime, Drain3, fastembed |
 | Observability | Prometheus, structured JSON logs, Langfuse |
 | API | FastAPI |
 

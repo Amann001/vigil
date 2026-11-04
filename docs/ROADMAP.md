@@ -16,8 +16,9 @@
 ## ML components
 
 1. **Anomaly detection.** Alerts come from a trained model rather than fixed thresholds.
-   An Isolation Forest baseline is compared with an LSTM autoencoder trained on a free cloud GPU and
-   served locally with ONNX Runtime. Reported: precision, recall and detection delay, on Vigil's own
+   Statistical and Isolation Forest baselines are compared with an LSTM autoencoder trained with
+   CPU-only PyTorch (the data is small enough that a GPU would not help) and served with ONNX
+   Runtime. Reported: precision, recall and detection delay, on Vigil's own
    data and on the Numenta Anomaly Benchmark (NAB).
 2. **Log intelligence.** Log template mining (Drain3) plus embedding clustering to surface new error
    patterns. Parsing accuracy is measured on LogHub.
@@ -28,8 +29,8 @@
 
 ## Constraints
 
-- **$0 cost.** Free tiers only: Gemini and Groq APIs, Neon (Postgres), Langfuse Cloud, Kaggle GPUs,
-  GitHub Actions.
+- **$0 cost.** Free tiers only: Gemini and Groq APIs, Neon (Postgres), Langfuse Cloud,
+  GitHub Actions, and Kaggle GPUs only if a model outgrows a laptop CPU.
 - **Under 5 GB of local disk.** No local Docker; Docker images are built and tested in CI.
 - **Swappable providers.** Every external service sits behind an interface, so paid models or
   self-hosted services can be plugged in.

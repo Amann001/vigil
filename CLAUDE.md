@@ -6,10 +6,11 @@ Milestones are in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Hard constraints
 
-- **$0 cost.** Free tiers only (Gemini, Groq, Neon, Langfuse Cloud, Kaggle, GitHub Actions).
+- **$0 cost.** Free tiers only (Gemini, Groq, Neon, Langfuse Cloud, GitHub Actions).
   Never add a paid service or anything that needs a credit card.
-- **Under 5 GB of local disk** for the whole project. No local Docker, no local PyTorch with CUDA,
-  no local LLMs. Deep-learning training happens on Kaggle and is served locally via ONNX.
+- **Under 5 GB of local disk** for the whole project. No local Docker, no CUDA, no local LLMs.
+  Small models are trained locally with CPU-only PyTorch (the optional `train` dependency group)
+  and served with ONNX Runtime; Kaggle's free GPUs are only for models too big for a laptop CPU.
 - **Ask before downloading** anything beyond Python packages (binaries, datasets, models):
   state the file, source and size. Verify checksums of downloaded binaries.
 - **Never commit secrets.** Keys live in `.env` (git-ignored); `.env.example` lists the names.

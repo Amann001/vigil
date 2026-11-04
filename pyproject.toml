@@ -13,6 +13,7 @@ dependencies = [
     "drain3>=0.9.11",
     "fastapi>=0.162.0",
     "httpx>=0.28.1",
+    "onnxruntime>=1.31.1",
     "pandas>=3.1.0",
     "prometheus-client>=0.26.0",
     "psutil>=7.2.2",
@@ -39,6 +40,24 @@ dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.3",
 ]
+# Only needed to train the LSTM autoencoder (installed by default so tests and benchmarks run).
+# Vigil itself runs the exported model with onnxruntime: `uv sync --no-group train` saves ~0.6 GB.
+train = [
+    "onnx>=1.23.2",
+    "torch>=2.15.0",
+]
+
+[tool.uv]
+default-groups = ["dev", "train"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+# CPU-only PyTorch on every platform. The default Linux build pulls in several GB of CUDA libraries.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.ruff]
 line-length = 100
