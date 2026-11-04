@@ -68,7 +68,13 @@ def test_configure_logging_writes_json_to_service_file(tmp_path):
         for handler in root.handlers:
             handler.flush()
 
-        entry = json.loads((tmp_path / "orders.log").read_text(encoding="utf-8").strip())
+        logging.getLogger("httpx").info('HTTP Request: GET http://x "HTTP/1.1 200 OK"')
+        for handler in root.handlers:
+            handler.flush()
+
+        lines = (tmp_path / "orders.log").read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1  # the httpx request line was suppressed
+        entry = json.loads(lines[0])
         assert entry["service"] == "orders"
         assert entry["order_id"] == "o-1"
     finally:

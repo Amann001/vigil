@@ -73,3 +73,7 @@ def configure_logging(service: str, log_dir: Path | None, level: int = logging.I
         handler.setFormatter(formatter)
         root.addHandler(handler)
     root.setLevel(level)
+    # httpx logs every request at INFO. Dependency calls are already logged (on failure) and
+    # measured by our own code, so these lines would only flood the logs agents search.
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
