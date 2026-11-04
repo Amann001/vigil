@@ -34,6 +34,14 @@ def test_extra_fields_become_top_level_keys():
     assert "levelno" not in entry
 
 
+def test_uvicorn_colour_codes_are_dropped():
+    entry = json.loads(
+        JsonFormatter("orders").format(make_record(color_message="\x1b[36mStarted\x1b[0m"))
+    )
+
+    assert "color_message" not in entry
+
+
 def test_current_request_id_is_added_to_every_line():
     formatter = JsonFormatter("inventory")
     token = request_id_var.set("req-42")

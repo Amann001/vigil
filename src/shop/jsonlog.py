@@ -18,9 +18,11 @@ from pathlib import Path
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 # Attributes every LogRecord has. Anything else was passed with `extra=` and becomes a field.
+# uvicorn also attaches `color_message`, a copy of the message with terminal colour codes.
 _STANDARD_ATTRS = set(vars(logging.LogRecord("", 0, "", 0, "", None, None))) | {
     "message",
     "asctime",
+    "color_message",
 }
 
 # Keeps disk use bounded: at most 3 files x 5 MB per service by default. Long data-collection
