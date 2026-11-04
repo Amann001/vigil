@@ -44,6 +44,9 @@ DEPENDENCY_LATENCY = Histogram(
 )
 
 DEPENDENCY_TIMEOUT_SECONDS = 2.0
+# Connecting to localhost takes well under a millisecond. Without a short connect timeout a
+# stopped service looks "slow" instead of "down": on Windows a refused connection takes ~2s.
+CONNECT_TIMEOUT_SECONDS = 0.5
 
 # Not recorded as traffic: Prometheus scrapes /metrics every few seconds and would drown
 # real requests.
@@ -125,17 +128,25 @@ class Dependency:
     Propagates the current request ID, applies a timeout, records per-dependency metrics, and
     turns failures into the gateway errors a real service would return:
     504 if the dependency timed out, 503 if it was unreachable, 502 if it returned a 5xx.
+
+    A caller's timeout must exceed the time its dependency may legitimately spend on its own
+    dependencies. Otherwise the caller gives up while the work still completes (a customer is
+    charged but shown an error), and the timeout is reported far from the real fault.
     """
 
     def __init__(
-        self, caller: str, name: str, transport: httpx.AsyncBaseTransport | None = None
+        self,
+        caller: str,
+        name: str,
+        timeout: float = DEPENDENCY_TIMEOUT_SECONDS,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.caller = caller
         self.name = name
         self.log = logging.getLogger(f"shop.{caller}.dependency")
         self.client = httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{PORTS[name]}",
-            timeout=DEPENDENCY_TIMEOUT_SECONDS,
+            timeout=httpx.Timeout(timeout, connect=CONNECT_TIMEOUT_SECONDS),
             transport=transport,
             event_hooks={"request": [self._propagate_request_id]},
         )
@@ -151,6 +162,11 @@ class Dependency:
         start = time.perf_counter()
         try:
             response = await self.client.request(method, path, **kwargs)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as error:
+            # Never connected: the dependency is down, not slow.
+            self._record("unreachable", start)
+            self.log.error("dependency unreachable", extra={**context, "error": repr(error)})
+            raise HTTPException(status_code=503, detail=f"{self.name} unavailable") from None
         except httpx.TimeoutException:
             self._record("timeout", start)
             self.log.error("dependency timed out", extra=context)

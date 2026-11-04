@@ -16,12 +16,17 @@ from shop.service import Dependency, create_service, run
 
 NAME = "storefront"
 
+# An order makes up to 6 sequential calls (5 reservations and a charge), each allowed
+# DEPENDENCY_TIMEOUT_SECONDS. Waiting longer than orders can take means a slow inventory or
+# payments call is reported by orders, next to the fault, not by the storefront.
+ORDERS_TIMEOUT_SECONDS = 15.0
+
 log = logging.getLogger("shop.storefront")
 
 
 def create_app(inventory: Dependency | None = None, orders: Dependency | None = None) -> FastAPI:
     inventory = inventory or Dependency(NAME, "inventory")
-    orders = orders or Dependency(NAME, "orders")
+    orders = orders or Dependency(NAME, "orders", timeout=ORDERS_TIMEOUT_SECONDS)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

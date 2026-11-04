@@ -9,9 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from shop import inventory, orders, payments, storefront
-from shop.catalog import PRODUCTS
+from shop.catalog import PRODUCTS, OrderRequest
 from shop.jsonlog import JsonFormatter
-from shop.service import Dependency
+from shop.service import DEPENDENCY_TIMEOUT_SECONDS, Dependency
 
 
 def in_memory(caller: str, name: str, app) -> Dependency:
@@ -180,6 +180,24 @@ def test_unreachable_inventory_fails_order_with_503():
         'dependency_calls_total{dependency="inventory",outcome="unreachable",service="orders"}'
         in client.get("/metrics").text
     )
+
+
+def test_connect_timeout_means_unreachable_not_slow():
+    app = orders.create_app(
+        inventory=failing("orders", "inventory", httpx.ConnectTimeout("no answer")),
+        payments=failing("orders", "payments", httpx.ConnectTimeout("no answer")),
+    )
+
+    response = TestClient(app).post("/orders", json={"items": [{"sku": "MOUSE-01", "quantity": 1}]})
+
+    assert response.status_code == 503
+
+
+def test_storefront_outwaits_the_slowest_possible_order():
+    max_items = OrderRequest.model_fields["items"].metadata[1].max_length
+    slowest_order = (max_items + 1) * DEPENDENCY_TIMEOUT_SECONDS  # reservations + charge
+
+    assert slowest_order < storefront.ORDERS_TIMEOUT_SECONDS
 
 
 def test_payment_timeout_fails_order_with_504_and_releases_stock():
