@@ -6,6 +6,7 @@ Each log line is one JSON object, so Vigil's Logs agent can filter on fields
 
 import json
 import logging
+import os
 import sys
 from contextvars import ContextVar
 from datetime import UTC, datetime
@@ -22,8 +23,9 @@ _STANDARD_ATTRS = set(vars(logging.LogRecord("", 0, "", 0, "", None, None))) | {
     "asctime",
 }
 
-# Keeps disk use bounded: at most 3 files x 5 MB per service.
-_MAX_FILE_BYTES = 5_000_000
+# Keeps disk use bounded: at most 3 files x 5 MB per service by default. Long data-collection
+# runs raise the limit (VIGIL_LOG_FILE_MB) so early logs are not rotated away.
+_MAX_FILE_BYTES = int(float(os.environ.get("VIGIL_LOG_FILE_MB", "5")) * 1_000_000)
 _BACKUP_COUNT = 2
 
 

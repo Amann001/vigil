@@ -168,7 +168,7 @@ class LedgerEntry:
     """One ground-truth record: what was done to which service, and when."""
 
     timestamp: str
-    action: Literal["inject", "clear"]
+    action: Literal["inject", "clear", "restart"]
     service: str
     fault: dict | None
 
