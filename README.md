@@ -98,7 +98,23 @@ git clone https://github.com/Amann001/vigil.git
 cd vigil
 uv sync
 uv run pytest
+
+# Download Prometheus (pinned version, SHA-256 verified) into bin/
+uv run python scripts/install_prometheus.py
 ```
+
+Each demo shop service can be started on its own, e.g. `uv run python -m shop.inventory`:
+
+| Service | Port | Role |
+|---|---|---|
+| storefront | 8000 | Public API: product listing and checkout |
+| orders | 8001 | Reserves stock, charges payment, rolls back on failure |
+| payments | 8002 | Simulated card processor with realistic latency and declines |
+| inventory | 8003 | Stock levels with periodic restocking |
+
+Every service exposes `/health`, `/metrics` (Prometheus) and writes structured JSON logs to
+`data/logs/`. Prometheus scrapes all four every 5 seconds using
+[monitoring/prometheus.yml](monitoring/prometheus.yml).
 
 ## Roadmap
 

@@ -1,0 +1,22 @@
+# Prometheus configuration for the demo shop.
+#
+# Every 5 seconds Prometheus reads /metrics from each service and stores the values as time
+# series. These series are what Vigil's anomaly detector and Metrics agent read.
+
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: shop
+    # Services already label their own metrics with `service`; keep those values as they are.
+    honor_labels: true
+    static_configs:
+      - targets: ["127.0.0.1:8000"]
+        labels: { service: storefront }
+      - targets: ["127.0.0.1:8001"]
+        labels: { service: orders }
+      - targets: ["127.0.0.1:8002"]
+        labels: { service: payments }
+      - targets: ["127.0.0.1:8003"]
+        labels: { service: inventory }
