@@ -19,6 +19,7 @@ from pathlib import Path
 import pandas as pd
 
 from shop.config import DATA_DIR
+from vigil.autoencoder import LstmAutoencoderDetector
 from vigil.detectors import IsolationForestDetector, RobustZScore, calibrate_threshold
 from vigil.evaluation import Window, alarm_flags, evaluate
 from vigil.logevents import log_features, templates_seen
@@ -38,6 +39,7 @@ DETECTORS = {
     "robust_zscore": RobustZScore,
     "zscore_per_feature": lambda: RobustZScore(per_feature_quantile=0.99),
     "isolation_forest": IsolationForestDetector,
+    "lstm_autoencoder": LstmAutoencoderDetector,
 }
 
 

@@ -18,6 +18,7 @@ from pathlib import Path
 import pandas as pd
 
 from shop.config import DATA_DIR
+from vigil.autoencoder import LstmAutoencoderDetector
 from vigil.detectors import Detector, IsolationForestDetector, RobustZScore, calibrate_threshold
 from vigil.evaluation import Window, alarm_flags, evaluate
 
@@ -30,6 +31,7 @@ DETECTORS = {
     "robust_zscore": RobustZScore,
     "zscore_per_feature": lambda: RobustZScore(per_feature_quantile=0.99),
     "isolation_forest": IsolationForestDetector,
+    "lstm_autoencoder": LstmAutoencoderDetector,
 }
 
 
@@ -76,35 +78,41 @@ def run_series(
     values: pd.Series,
     windows: list[Window],
     detector: Detector,
-    quantile: float,
-) -> SeriesResult:
+    quantiles: tuple[float, ...] = QUANTILES,
+) -> dict[float, SeriesResult]:
+    """Train once on the probationary period, then evaluate each alarm threshold."""
     features = univariate_features(values)
     train_end = int(len(features) * PROBATIONARY_SHARE)
     detector.fit(features.iloc[:train_end])
-    threshold = calibrate_threshold(detector.score(features.iloc[:train_end]), quantile)
-    flags = alarm_flags(detector.score(features), threshold)
+    scores = detector.score(features)
+    training_scores = scores.iloc[:train_end]
 
-    report = evaluate(flags, windows, ignore_before=features.index[train_end])
-    scored = [w for w in windows if w.end >= features.index[train_end]]
-    positions = []
-    for window in scored:
-        alarmed = flags[(flags.index >= window.start) & (flags.index <= window.end) & flags]
-        if len(alarmed):
-            positions.append((alarmed.index[0] - window.start) / (window.end - window.start))
     scored_index = features.index[train_end:]
     inside = pd.Series(False, index=scored_index)
     for window in windows:
         inside |= (scored_index >= window.start) & (scored_index <= window.end)
-    return SeriesResult(
-        name,
-        report.incidents,
-        report.detected,
-        report.alarm_events,
-        report.false_alarm_events,
-        tuple(positions),
-        len(scored_index),
-        int(inside.sum()),
-    )
+    scored = [w for w in windows if w.end >= features.index[train_end]]
+
+    results = {}
+    for quantile in quantiles:
+        flags = alarm_flags(scores, calibrate_threshold(training_scores, quantile))
+        report = evaluate(flags, windows, ignore_before=features.index[train_end])
+        positions = []
+        for window in scored:
+            alarmed = flags[(flags.index >= window.start) & (flags.index <= window.end) & flags]
+            if len(alarmed):
+                positions.append((alarmed.index[0] - window.start) / (window.end - window.start))
+        results[quantile] = SeriesResult(
+            name,
+            report.incidents,
+            report.detected,
+            report.alarm_events,
+            report.false_alarm_events,
+            tuple(positions),
+            len(scored_index),
+            int(inside.sum()),
+        )
+    return results
 
 
 def summarize(results: list[SeriesResult]) -> dict:
@@ -139,11 +147,12 @@ def benchmark(nab_dir: Path = NAB_DIR) -> dict:
     series = {name: load_series(name, nab_dir) for name in windows}
     results: dict = {}
     for detector_name, detector_class in DETECTORS.items():
+        per_quantile = [
+            run_series(name, values, windows[name], detector_class())
+            for name, values in series.items()
+        ]
         for quantile in QUANTILES:
-            per_series = [
-                run_series(name, values, windows[name], detector_class(), quantile)
-                for name, values in series.items()
-            ]
+            per_series = [results_by_quantile[quantile] for results_by_quantile in per_quantile]
             results[f"{detector_name}@{quantile}"] = {
                 "overall": summarize(per_series),
                 "by_category": {

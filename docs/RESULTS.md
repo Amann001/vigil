@@ -25,13 +25,20 @@ data.
 | Isolation Forest | 0.99 | 0.88 | 0.18 | 0.29 | 3234 |
 | Isolation Forest | 0.995 | 0.86 | 0.20 | 0.33 | 1807 |
 | Isolation Forest | 0.999 | 0.66 | 0.28 | 0.40 | 459 |
+| LSTM autoencoder | 0.99 | 0.80 | 0.15 | 0.25 | 1835 |
+| LSTM autoencoder | 0.995 | 0.79 | 0.17 | 0.28 | 1538 |
+| LSTM autoencoder | 0.999 | 0.77 | 0.20 | 0.32 | 1073 |
 | *Random alarms (reference)* | – | – | *0.095* | – | – |
 
 **What this shows**
 
 - Both baselines are 2.5–3x more precise than random alarms while catching about two thirds of
-  anomalies at the strictest threshold, but they still raise hundreds of false alarms. That is the
-  gap the learned sequence model (LSTM autoencoder) has to close.
+  anomalies at the strictest threshold, but they still raise hundreds of false alarms.
+- The LSTM autoencoder did **not** close that gap: it has the lowest F1 at every threshold. Each
+  NAB series gives it only its first 15% to learn from (often a few hundred points of a single
+  value), which is little data for a neural network; the statistical detectors need far less.
+  Its recall changes least with the threshold (0.80 to 0.77), the same robustness it shows on
+  Vigil's own incidents below.
 - On series with sudden level shifts (`artificialWithAnomaly`) Isolation Forest is *below*
   random precision (0.10 vs 0.12) while the z-score reaches 0.44. This matches a limitation
   documented in the unit tests: Isolation Forest only splits within the range seen in training, so
@@ -51,7 +58,7 @@ windows fill) and thresholds are calibrated on warm-up scores. An alarm within 6
 incident ends still counts as about it, because 30 s windows keep metrics abnormal briefly after
 recovery. The headline is the plain z-score on metrics at the middle threshold (0.995 quantile)
 with 3 points in a row to suppress one-off blips; `data/results/shop.json` has every setting in
-the grid (3 detectors x 2 feature sets x 3 thresholds x 1 or 3 points in a row).
+the grid (4 detectors x 2 feature sets x 3 thresholds x 1 or 3 points in a row).
 
 | Detector (0.995 quantile, 3 in a row) | Features | Recall | Precision | False alarms / hour | Median delay |
 |---|---|---|---|---|---|
@@ -60,9 +67,21 @@ the grid (3 detectors x 2 feature sets x 3 thresholds x 1 or 3 points in a row).
 | Z-score, per-feature calibration | metrics | 11/11 | 1.00 | 0.0 | 16 s |
 | Isolation Forest | metrics | 8/11 | 1.00 | 0.0 | 21 s |
 | Isolation Forest | metrics + logs | 5/11 | 1.00 | 0.0 | 20 s |
+| LSTM autoencoder | metrics | 11/11 | 1.00 | 0.0 | 31 s |
+| LSTM autoencoder | metrics + logs | 11/11 | 1.00 | 0.0 | 23 s |
 
 With one point in a row instead of three, every detector alarms a few seconds sooner but raises
 1–7 false alarms per hour.
+
+**The LSTM autoencoder** (`uv run python -m vigil.autoencoder`) reads the last 60 s (12 samples),
+compresses them into 32 numbers and rebuilds the window; the score is how badly it rebuilds it.
+It trains on the laptop CPU in about 8 s (1,056 healthy rows, early stopping on the last 20% of
+the warm-up) and the exported ONNX model is 83 KB. It is the most robust to the threshold
+choice: 11/11 at every threshold, with no false alarms at 0.995 and above, and the same result
+for 5 random seeds. It is also the slowest, because its error is averaged over the whole
+window, and like the plain z-score it catches leaks only when the service crashes. Its held-out
+loss is higher than its training loss (9.7 vs 3.6) because the held-out part is the end of the
+warm-up, a different phase of the traffic cycle; a longer warm-up would likely narrow the gap.
 
 **Error analysis**
 

@@ -50,7 +50,7 @@ def test_spike_inside_the_window_is_detected(nab_dir):
     values = load_series(SERIES, nab_dir)
     windows = load_windows(nab_dir)[SERIES]
 
-    result = run_series(SERIES, values, windows, RobustZScore(), quantile=0.999)
+    result = run_series(SERIES, values, windows, RobustZScore(), quantiles=(0.999,))[0.999]
 
     assert result.detected == 1
     assert result.window_points == 41
@@ -61,7 +61,7 @@ def test_spike_inside_the_window_is_detected(nab_dir):
 def test_summary_includes_the_random_alarm_reference(nab_dir):
     values = load_series(SERIES, nab_dir)
     windows = load_windows(nab_dir)[SERIES]
-    result = run_series(SERIES, values, windows, RobustZScore(), quantile=0.999)
+    result = run_series(SERIES, values, windows, RobustZScore(), quantiles=(0.999,))[0.999]
 
     summary = summarize([result])
 
