@@ -37,3 +37,42 @@ data.
 ### Vigil's own incidents
 
 Pending: the first 3.5-hour data-collection campaign (11 labelled incidents) is in progress.
+
+## Log template mining
+
+### LogHub 2k samples: Drain
+
+`uv run python -m vigil.loghub` · 16 real systems, 2,000 lines each · one fixed setting for every
+system (similarity 0.4, depth 4), no per-system tuning · metric: grouping accuracy (a line counts
+only if its group contains exactly the lines of its true template).
+
+| System | True templates | Basic masks (default) | + UUID & hostname masks |
+|---|---|---|---|
+| Android | 166 | 0.734 | 0.728 |
+| Apache | 6 | 1.000 | 1.000 |
+| BGL | 120 | 0.969 | 0.969 |
+| Hadoop | 114 | 0.963 | 0.963 |
+| HDFS | 14 | 0.998 | 0.998 |
+| HealthApp | 75 | 0.900 | 0.900 |
+| HPC | 46 | 0.887 | 0.887 |
+| Linux | 118 | 0.684 | 0.683 |
+| Mac | 341 | 0.681 | 0.681 |
+| OpenSSH | 27 | 0.718 | 0.718 |
+| OpenStack | 43 | 0.309 | 0.298 |
+| Proxifier | 8 | 0.017 | 0.015 |
+| Spark | 36 | 0.922 | 0.920 |
+| Thunderbird | 149 | 0.958 | 0.958 |
+| Windows | 50 | 0.565 | 0.565 |
+| Zookeeper | 50 | 0.967 | 0.965 |
+| **Average** | | **0.767** | 0.765 |
+
+**What this shows**
+
+- With no tuning, 9 of 16 systems are grouped with at least 0.88 accuracy.
+- OpenStack and Proxifier fail because their lines *start* with instance UUIDs and hostnames, and
+  Drain routes lines by their first tokens. Masking those identifiers (right column, added after
+  this error analysis) cut OpenStack's most fragmented template from 21 groups to 2 and
+  Proxifier's from 20 to 9, yet grouping accuracy did not move: the metric only credits perfect
+  groups, and the remaining splits come from Drain assuming a fixed token count per template
+  (Proxifier adds optional fragments such as `(18.4 KB)`). The extra masks were therefore not made
+  the default.
