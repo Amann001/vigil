@@ -6,8 +6,9 @@ import uuid
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 
+import httpx
 import uvicorn
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
@@ -30,6 +31,19 @@ IN_PROGRESS = Gauge(
     "HTTP requests currently being handled.",
     ["service"],
 )
+DEPENDENCY_CALLS = Counter(
+    "dependency_calls_total",
+    "Calls from one shop service to another.",
+    ["service", "dependency", "outcome"],
+)
+DEPENDENCY_LATENCY = Histogram(
+    "dependency_call_duration_seconds",
+    "Latency of calls from one shop service to another.",
+    ["service", "dependency"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0),
+)
+
+DEPENDENCY_TIMEOUT_SECONDS = 2.0
 
 # Not recorded as traffic: Prometheus scrapes /metrics every few seconds and would drown
 # real requests.
@@ -103,6 +117,64 @@ def create_service(name: str, lifespan: Lifespan | None = None) -> FastAPI:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     return app
+
+
+class Dependency:
+    """HTTP client for calling another shop service.
+
+    Propagates the current request ID, applies a timeout, records per-dependency metrics, and
+    turns failures into the gateway errors a real service would return:
+    504 if the dependency timed out, 503 if it was unreachable, 502 if it returned a 5xx.
+    """
+
+    def __init__(
+        self, caller: str, name: str, transport: httpx.AsyncBaseTransport | None = None
+    ) -> None:
+        self.caller = caller
+        self.name = name
+        self.log = logging.getLogger(f"shop.{caller}.dependency")
+        self.client = httpx.AsyncClient(
+            base_url=f"http://127.0.0.1:{PORTS[name]}",
+            timeout=DEPENDENCY_TIMEOUT_SECONDS,
+            transport=transport,
+            event_hooks={"request": [self._propagate_request_id]},
+        )
+
+    @staticmethod
+    async def _propagate_request_id(request: httpx.Request) -> None:
+        if (request_id := request_id_var.get()) is not None:
+            request.headers["x-request-id"] = request_id
+
+    async def request(self, method: str, path: str, **kwargs) -> httpx.Response:
+        """Send a request. Returns responses below 500; raises HTTPException otherwise."""
+        context = {"dependency": self.name, "method": method, "path": path}
+        start = time.perf_counter()
+        try:
+            response = await self.client.request(method, path, **kwargs)
+        except httpx.TimeoutException:
+            self._record("timeout", start)
+            self.log.error("dependency timed out", extra=context)
+            raise HTTPException(status_code=504, detail=f"{self.name} timed out") from None
+        except httpx.TransportError as error:
+            self._record("unreachable", start)
+            self.log.error("dependency unreachable", extra={**context, "error": repr(error)})
+            raise HTTPException(status_code=503, detail=f"{self.name} unavailable") from None
+
+        if response.status_code >= 500:
+            self._record("error", start)
+            self.log.error(
+                "dependency returned an error", extra={**context, "status": response.status_code}
+            )
+            raise HTTPException(status_code=502, detail=f"{self.name} failed")
+        self._record("ok", start)
+        return response
+
+    def _record(self, outcome: str, start: float) -> None:
+        DEPENDENCY_CALLS.labels(self.caller, self.name, outcome).inc()
+        DEPENDENCY_LATENCY.labels(self.caller, self.name).observe(time.perf_counter() - start)
+
+    async def aclose(self) -> None:
+        await self.client.aclose()
 
 
 def run(app: FastAPI, name: str) -> None:
