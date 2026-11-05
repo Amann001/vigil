@@ -3,6 +3,7 @@
 Writes to data/datasets/vigil/<campaign start>/:
 - metrics.csv.gz : one row per 5 s, one column per feature, plus incident labels
 - logs.csv.gz    : every service log line with its template key
+- raw_logs/      : the original JSON log lines, so agents can be replayed on the campaign
 - incidents.json : each incident's service, fault, settings and time window
 - meta.json      : the campaign settings and where training data ends
 
@@ -10,6 +11,7 @@ Run it with: uv run python -m vigil.dataset
 """
 
 import argparse
+import gzip
 import json
 from pathlib import Path
 
@@ -33,6 +35,29 @@ def campaign_end(meta: dict) -> pd.Timestamp:
     raise ValueError("campaign.json has no end time")
 
 
+def archive_raw_logs(log_dir: Path, target: Path, start: pd.Timestamp, end: pd.Timestamp) -> None:
+    """Copy each service's JSON log lines from the campaign into raw_logs/<service>.jsonl.gz.
+
+    Live log files rotate and are appended to by later runs; this keeps the campaign's own lines.
+    """
+    output = target / "raw_logs"
+    output.mkdir(parents=True, exist_ok=True)
+    by_service: dict[str, list[tuple[pd.Timestamp, str]]] = {}
+    for path in sorted(log_dir.glob("*.log*")):
+        with path.open(encoding="utf-8") as file:
+            for line in file:
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                timestamp = pd.Timestamp(entry["timestamp"])
+                if start <= timestamp <= end:
+                    by_service.setdefault(entry["service"], []).append((timestamp, line))
+    for service, lines in by_service.items():
+        lines.sort(key=lambda pair: pair[0])
+        with gzip.open(output / f"{service}.jsonl.gz", "wt", encoding="utf-8") as file:
+            file.writelines(line.rstrip("\r\n") + "\n" for _, line in lines)
+
+
 def export(
     chaos_dir: Path, output_dir: Path, client: httpx.Client, log_dir: Path = LOG_DIR
 ) -> Path:
@@ -49,6 +74,7 @@ def export(
     events = read_events(log_dir)
     in_campaign = (events["timestamp"] >= start) & (events["timestamp"] <= end)
     events[in_campaign].to_csv(target / "logs.csv.gz", index=False)
+    archive_raw_logs(log_dir, target, start, end)
     (target / "incidents.json").write_text(
         json.dumps(
             [
