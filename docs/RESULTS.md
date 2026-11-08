@@ -149,3 +149,82 @@ only if its group contains exactly the lines of its true template).
   groups, and the remaining splits come from Drain assuming a fixed token count per template
   (Proxifier adds optional fragments such as `(18.4 KB)`). The extra masks were therefore not made
   the default.
+
+## Root-cause investigation (agents)
+
+### Replays of the first campaign
+
+`uv run python -m vigil.agent_eval` · for each of the 11 alerts the detector raised, the agents
+investigate a replay of the shop *as it was at the moment of the alert* (no later data) and
+write a diagnosis. Only then are the incident labels read, to check two things: the root-cause
+service, and the kind of failure (crash, memory leak, slow responses, error responses).
+
+| Incident | Injected | Diagnosed | Service | Kind | Time |
+|---|---|---|---|---|---|
+| 1 | storefront memory leak | storefront memory leak | ✓ | ✓ | 102 s |
+| 2 | orders errors | orders error responses | ✓ | ✓ | 124 s |
+| 3 | payments crash | payments crash | ✓ | ✓ | 139 s |
+| 4 | inventory latency | inventory slow responses | ✓ | ✓ | 70 s |
+| 5 | inventory crash | inventory crash | ✓ | ✓ | 47 s |
+| 6 | orders latency | orders slow responses | ✓ | ✓ | 84 s |
+| 7 | payments errors | payments error responses | ✓ | ✓ | 83 s |
+| 8 | storefront memory leak | storefront memory leak | ✓ | ✓ | 114 s |
+| 9 | storefront memory leak | storefront memory leak | ✓ | ✓ | 83 s |
+| 10 | payments errors | payments error responses | ✓ | ✓ | 133 s |
+| 11 | orders latency | orders slow responses | ✓ | ✓ | 94 s |
+
+**11/11 correct on both**, median 94 s per investigation, all at high confidence. The final
+diagnosis was written by Gemini 3.5 Flash 8 times and by its fallback (Groq gpt-oss-120b) 3
+times, when Gemini's free daily quota of 20 requests had run out.
+
+The interesting cases are the ones where the obvious answer is wrong:
+- **Leaks that end in a crash** (1, 8, 9): the alert fires when the service stops reporting,
+  which looks like a crash. The deploy agent looked at memory *before* it went down (60 MB
+  rising to 390 MB within a minute) and the diagnosis was a memory leak.
+- **Failures that spread** (2, 3, 5, 7, 10): storefront and orders show errors too, because
+  they call the broken service. The diagnosis names the service whose own problem explains the
+  others, citing for example "orders logs `dependency unreachable` to payments, payments itself
+  logs no errors".
+
+### Live incidents
+
+`uv run vigil watch` on the running shop, with two faults the agents had never seen during
+development (inventory never had error faults in the campaign, and only storefront leaked):
+
+| Injected | Alert after | Diagnosis after | Diagnosed |
+|---|---|---|---|
+| inventory: 40% of requests fail | 25 s | 49 s | inventory, error responses ✓ |
+| orders: memory leak, 4 MB/s | 75 s | 102 s | orders, memory leak ✓ |
+
+The leak was caught at 352 MB, before the service reached its 400 MB limit and was killed. That
+diagnosis also noted that the inventory incident 7 minutes earlier "fully recovered before the
+orders memory spike began", and did not blame it. During 10 minutes of healthy traffic before
+the faults the watcher raised no alarm (highest score 26 against a threshold of 91). Both
+diagnoses were then confirmed with `vigil review ... --confirm` from a separate process, which
+resumed each paused investigation from its checkpoint.
+
+### What went wrong on the way (and was fixed)
+
+- **Blaming the previous incident.** Agents first asked for one to two hours of history and
+  linked errors from an earlier, already-resolved incident to the current one. Tool windows are
+  now capped at 15 minutes, and the prompts say that problems which recovered before the alert
+  are context, not the cause.
+- **A misleading "now".** Reports first used a one-minute average, which made a service that
+  died 30 s earlier look half healthy; they now use the latest sample.
+- **Gemini tool calls rejected.** Gemini 3 attaches a "thought signature" to each tool call that
+  must be sent back; the OpenAI-compatible API drops it, so Gemini uses Google's own client.
+- **Free-tier limits.** Groq allows 8,000 tokens a minute *per model*, so the three specialists,
+  which run in parallel, use different models; every call falls back to another model and
+  records which one answered.
+- **An interrupted investigation skipped work.** When the laptop slept mid-investigation, the
+  restart began the graph again instead of continuing it, and silently dropped the second round
+  of questions. Interrupted investigations now continue from their checkpoint, and incident 4
+  was investigated again from scratch.
+
+### Limits
+
+These 11 incidents are a development set, not a test: two of the fixes above came from watching
+the agents work on them. Each incident is one clean fault, and the agents are told the shop's
+architecture and the four kinds of failure, which maps one-to-one onto the faults injected. The
+real test is the set of hidden scenarios written by someone else (Milestone 6), which will
+include faults that fit none of these categories.

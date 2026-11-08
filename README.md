@@ -66,17 +66,21 @@ flowchart LR
 - **Measured, not assumed.** Every component is evaluated, including on public benchmarks.
 - **Runs on free tiers.** No paid services, and under 5 GB of local disk.
 
-## Evaluation (planned)
+## Results so far
 
-| What | How |
+Full tables and error analysis are in [docs/RESULTS.md](docs/RESULTS.md).
+
+| What | Result |
 |---|---|
-| Incident diagnosis | 20 injected failure types, 6 of them held out until the final evaluation |
-| Metrics | Root-cause accuracy, time to diagnosis, tokens per incident, unsafe-action rate |
-| Anomaly detection | Precision, recall and detection delay, including on the Numenta Anomaly Benchmark (NAB) |
-| Log parsing | Parsing accuracy on LogHub datasets |
-| Ablations | Single agent vs multi-agent, with vs without memory, model vs model |
+| Root-cause diagnosis, 11 recorded incidents (replayed) | 11/11 correct service and kind of failure, median 94 s |
+| Root-cause diagnosis, 2 live incidents never seen in development | 2/2 correct; alert 25-75 s after the fault, diagnosis 49-102 s later |
+| Anomaly detection, 11 recorded incidents | 11/11 detected, no false alarms, median 17 s (robust z-score) |
+| Anomaly detection, NAB | F1 0.25-0.40 across four detectors, precision up to 3x random alarms |
+| Log template mining, LogHub (16 systems) | 0.767 average grouping accuracy, no per-system tuning |
 
-Results will be published here as they are produced.
+The recorded incidents are a development set. The final evaluation (Milestone 6) uses 20 failure
+types, 6 of them written by someone else and held out until then, plus ablations: single agent vs
+multi-agent, with vs without memory, model vs model.
 
 ## Tech stack
 
@@ -105,6 +109,18 @@ uv run python scripts/install_prometheus.py
 # Start the shop, Prometheus and simulated customers (Ctrl+C stops everything)
 uv run python -m shop.launch
 ```
+
+The agents need free API keys for Gemini and Groq: copy `.env.example` to `.env` and fill them in.
+
+```bash
+uv run vigil watch                  # watch the live shop; investigate each alert
+uv run vigil replay 3               # investigate alert 3 of the latest recorded campaign
+uv run vigil list                   # every investigation and its status
+uv run vigil review ID --confirm    # accept a diagnosis (or --correct "what really happened")
+```
+
+Each investigation pauses for human review and is checkpointed, so it can be reviewed later
+from another terminal.
 
 ## The demo system
 
