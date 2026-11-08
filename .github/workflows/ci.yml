@@ -8,6 +8,25 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # A throwaway Postgres with pgvector, so the queue, memory and checkpoint code is tested
+    # against a real database.
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.0-pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      VIGIL_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
     steps:
       - uses: actions/checkout@v5
 

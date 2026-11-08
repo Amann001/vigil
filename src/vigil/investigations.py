@@ -25,6 +25,7 @@ from shop.config import DATA_DIR, PROJECT_ROOT
 from vigil.actions import AuditLog, Executor
 from vigil.agents import Context, build_graph
 from vigil.alerts import Alert
+from vigil.db import direct
 from vigil.evidence import Evidence
 from vigil.memory import Memory
 
@@ -48,7 +49,7 @@ def _is_postgres(store: Store) -> bool:
 def open_graph(store: Store | None = None) -> Iterator:
     store = default_store() if store is None else store
     if _is_postgres(store):
-        with PostgresSaver.from_conn_string(store) as saver:
+        with PostgresSaver.from_conn_string(direct(store)) as saver:
             saver.setup()  # creates the checkpoint tables on first use; a no-op afterwards
             yield build_graph(saver)
         return

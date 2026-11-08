@@ -153,19 +153,19 @@ class LocalStore:
         return dict(Counter(d.kind for d in self.documents.values()))
 
 
-SCHEMA = f"""
+SCHEMA = """
 create extension if not exists vector;
-create table if not exists memory (
+create table if not exists {table} (
     id text primary key,
     kind text not null,
     title text not null,
     body text not null,
     occurred_at timestamptz,
     metadata jsonb not null default '{{}}',
-    embedding vector({DIMENSIONS}) not null,
+    embedding vector({dimensions}) not null,
     search tsvector generated always as (to_tsvector('english', title || ' ' || body)) stored
 );
-create index if not exists memory_search_idx on memory using gin (search);
+create index if not exists memory_search_idx on {table} using gin (search);
 """
 # No vector index: with hundreds of documents an exact scan is fast and never misses a match.
 # An HNSW index (`using hnsw (embedding vector_cosine_ops)`) is the step for many thousands.
@@ -174,20 +174,29 @@ create index if not exists memory_search_idx on memory using gin (search);
 class PostgresStore:
     """pgvector for similarity, Postgres full-text search for keywords."""
 
-    def __init__(self, url: str) -> None:
-        import psycopg
+    def __init__(self, url: str, schema: str | None = None) -> None:
         from pgvector.psycopg import register_vector
 
-        self.connection = psycopg.connect(url, autocommit=True)
-        self.connection.execute(SCHEMA)
+        from vigil.db import connect
+
+        self.connection = connect(url)
+        # Qualified table names, not search_path: see the note in vigil.queue.
+        self.table = "memory"
+        if schema is not None:
+            if not re.fullmatch(r"[a-z_][a-z0-9_]*", schema):
+                raise ValueError(f"unsafe schema name {schema!r}")
+            self.connection.execute(f"create schema if not exists {schema}")
+            self.table = f"{schema}.memory"
+        self.connection.execute(SCHEMA.format(table=self.table, dimensions=DIMENSIONS))
         register_vector(self.connection)
 
     def upsert(self, documents: Sequence[Document], vectors: np.ndarray) -> None:
         with self.connection.cursor() as cursor:
             for document, vector in zip(documents, vectors, strict=True):
                 cursor.execute(
-                    """
-                    insert into memory (id, kind, title, body, occurred_at, metadata, embedding)
+                    f"""
+                    insert into {self.table}
+                        (id, kind, title, body, occurred_at, metadata, embedding)
                     values (%s, %s, %s, %s, %s, %s, %s)
                     on conflict (id) do update set kind = excluded.kind, title = excluded.title,
                         body = excluded.body, occurred_at = excluded.occurred_at,
@@ -222,7 +231,7 @@ class PostgresStore:
 
     def vector_search(self, vector, kinds, before, exclude, limit) -> list[Document]:
         params = self._params(kinds, before, exclude, limit) | {"vector": vector}
-        sql = f"""select {self._COLUMNS} from memory where {self._FILTER}
+        sql = f"""select {self._COLUMNS} from {self.table} where {self._FILTER}
                   order by embedding <=> %(vector)s limit %(limit)s"""
         return self._rows(sql, params)
 
@@ -231,14 +240,14 @@ class PostgresStore:
             return []
         # Any of the words may match ("a | b | c"); ranking rewards documents matching more.
         params = self._params(kinds, before, exclude, limit) | {"query": " | ".join(words)}
-        sql = f"""select {self._COLUMNS} from memory,
+        sql = f"""select {self._COLUMNS} from {self.table},
                          to_tsquery('english', %(query)s) as query
                   where search @@ query and {self._FILTER}
                   order by ts_rank_cd(search, query) desc limit %(limit)s"""
         return self._rows(sql, params)
 
     def count(self) -> dict[str, int]:
-        rows = self.connection.execute("select kind, count(*) from memory group by kind")
+        rows = self.connection.execute(f"select kind, count(*) from {self.table} group by kind")
         return dict(rows.fetchall())
 
 
