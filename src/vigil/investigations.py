@@ -54,15 +54,27 @@ def investigate(
     db_path: Path = DB_PATH,
     reports_dir: Path = REPORTS_DIR,
 ) -> dict:
-    """Investigate an alert until the diagnosis is ready for human review."""
+    """Investigate an alert until the diagnosis is ready for human review.
+
+    An investigation that was interrupted part-way (the process stopped) continues from its
+    last checkpoint. One that already reached review is started again from scratch.
+    """
     started = time.monotonic()
+    config = _config(investigation_id)
     with open_graph(db_path) as graph:
-        state = graph.invoke(
-            {"alert": alert.describe()}, _config(investigation_id), context=Context(evidence)
-        )
+        pending = graph.get_state(config).next
+        resumed = bool(pending) and pending != ("review",)
+        if resumed:
+            # Passing new input would restart the graph and skip the interrupted steps (an
+            # interrupted run lost its second round of questions this way); None continues them.
+            state = graph.invoke(None, config, context=Context(evidence))
+        else:
+            graph.checkpointer.delete_thread(investigation_id)  # no-op for a new investigation
+            state = graph.invoke({"alert": alert.describe()}, config, context=Context(evidence))
     report = {
         "id": investigation_id,
         "status": "awaiting review",
+        "resumed_from_checkpoint": resumed,
         "alert_at": alert.detected_at.isoformat(),
         "investigated_at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
         "seconds": round(time.monotonic() - started, 1),

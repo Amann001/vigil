@@ -78,6 +78,64 @@ def test_review_resumes_the_paused_investigation(store):
         investigations.review("replay-x-03", "confirmed", "", store / "vigil.db", store / "reports")
 
 
+class Flaky:
+    """A two-step graph whose second step fails the first time, like a process stopped mid-run."""
+
+    def __init__(self):
+        self.gathered = 0
+        self.failures_left = 1
+
+    def gather(self, state):
+        self.gathered += 1
+        return {"findings": ["payments down"]}
+
+    def diagnose(self, state):
+        if self.failures_left:
+            self.failures_left -= 1
+            raise RuntimeError("laptop lid closed")
+        return {"diagnosis": DIAGNOSIS, "models": ["diagnosis: fake"]}
+
+    def build(self, checkpointer=None):
+        graph = StateGraph(State)
+        graph.add_node("gather", self.gather)
+        graph.add_node("diagnose", self.diagnose)
+        graph.add_node("review", lambda s: {"review": interrupt({"diagnosis": s["diagnosis"]})})
+        graph.add_edge(START, "gather")
+        graph.add_edge("gather", "diagnose")
+        graph.add_edge("diagnose", "review")
+        graph.add_edge("review", END)
+        return graph.compile(checkpointer=checkpointer)
+
+
+def test_an_interrupted_investigation_continues_where_it_stopped(store, monkeypatch):
+    """Regression: restarting an interrupted investigation skipped its unfinished steps."""
+    flaky = Flaky()
+    monkeypatch.setattr(investigations, "build_graph", flaky.build)
+    with pytest.raises(RuntimeError, match="lid closed"):
+        run(store)
+
+    report = run(store)
+
+    assert report["resumed_from_checkpoint"] is True
+    assert flaky.gathered == 1  # finished work is not redone
+    assert report["findings"] == ["payments down"]
+    assert report["diagnosis"] == DIAGNOSIS
+
+
+def test_investigating_again_starts_from_scratch(store, monkeypatch):
+    """Regression: a rerun added new findings on top of the previous run's."""
+    flaky = Flaky()
+    flaky.failures_left = 0
+    monkeypatch.setattr(investigations, "build_graph", flaky.build)
+    run(store)
+
+    report = run(store)
+
+    assert report["resumed_from_checkpoint"] is False
+    assert report["findings"] == ["payments down"]
+    assert flaky.gathered == 2
+
+
 def test_review_of_an_unknown_investigation_fails(store):
     with pytest.raises(KeyError):
         investigations.review("nope", "confirmed", "", store / "vigil.db", store / "reports")
