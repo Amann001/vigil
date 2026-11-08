@@ -109,3 +109,18 @@ def test_a_failed_restart_is_recorded_not_raised(audit, monkeypatch):
     entry = carry_out(restart(), APPROVED, ControlApiExecutor(), audit, "i1")
 
     assert entry["outcome"] == "failed" and "control API is down" in entry["reasons"][0]
+
+
+def test_no_action_changes_nothing(audit):
+    executor = RecordingExecutor()
+    proposal = Proposal(
+        action="no_action",
+        service=None,
+        rationale="more customers than usual; latency and errors normal",
+        runbook="normal-variation",
+        expected_outcome="nothing to change",
+    )
+
+    entry = carry_out(proposal, APPROVED, executor, audit, "i1")
+
+    assert entry["outcome"] == "no action" and executor.calls == []

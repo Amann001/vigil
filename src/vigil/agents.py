@@ -114,8 +114,15 @@ focused question. Return no tasks if the findings already identify the root caus
 
 
 class Diagnosis(BaseModel):
-    root_cause_service: Literal["storefront", "orders", "payments", "inventory", "unknown"]
-    category: Literal["service_crash", "memory_leak", "slow_responses", "error_responses", "other"]
+    root_cause_service: Literal["storefront", "orders", "payments", "inventory", "none", "unknown"]
+    category: Literal[
+        "service_crash",
+        "memory_leak",
+        "slow_responses",
+        "error_responses",
+        "not_an_incident",
+        "other",
+    ]
     summary: str = Field(description="Two or three sentences: what happened and why")
     evidence: list[str] = Field(description="The specific findings that support the diagnosis")
     affected_services: list[str] = Field(description="Services impacted by the root cause")
@@ -133,6 +140,9 @@ Categories:
 - memory_leak: memory grew steadily, possibly until the service was killed.
 - slow_responses: the service itself became slow.
 - error_responses: the service itself returned errors while running.
+- not_an_incident: nothing is broken; the alert reflects normal variation, for example more
+  customers than usual while latency and errors stay at their usual levels. Use root-cause
+  service "none".
 - other: none of the above fits.
 
 Base every claim on the findings. If they do not support a clear conclusion, use "unknown" or
@@ -377,6 +387,7 @@ Rules:
 - Act only on the root-cause service, never on services that are only affected by it.
 - Propose escalate if no action would fix the cause safely, the root cause is unknown, or the
   diagnosis has low confidence.
+- Propose no_action if the diagnosis is not_an_incident: nothing needs fixing.
 - Cite the past incidents (by id) that informed the proposal, and none that did not.
 
 {recalled}"""

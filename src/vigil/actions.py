@@ -50,11 +50,17 @@ ACTIONS = {
         needs_service=False,
         changes_system=False,
     ),
+    "no_action": Action(
+        "Change nothing because nothing is broken: the alert reflects normal variation, such "
+        "as more customers than usual, with latency and errors at their usual levels.",
+        needs_service=False,
+        changes_system=False,
+    ),
 }
 
 
 class Proposal(BaseModel):
-    action: Literal["restart_service", "escalate"]
+    action: Literal["restart_service", "escalate", "no_action"]
     service: Service | None = Field(description="The service to act on, for restart_service")
     rationale: str = Field(description="Why this action should fix the diagnosed root cause")
     runbook: str | None = Field(description="The runbook this follows, if any")
@@ -161,7 +167,7 @@ def carry_out(
     elif not approval.get("approved"):
         entry |= {"outcome": "rejected", "reasons": [approval.get("notes") or "not approved"]}
     elif not ACTIONS[proposal.action].changes_system:
-        entry |= {"outcome": "escalated"}
+        entry |= {"outcome": "escalated" if proposal.action == "escalate" else "no action"}
     else:
         try:
             entry |= {"outcome": "executed", "result": executor.execute(proposal)}
