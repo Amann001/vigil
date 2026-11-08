@@ -1,11 +1,16 @@
 import sqlite3
+import zlib
 
+import numpy as np
+import pandas as pd
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from vigil import agents, llm
+from vigil.actions import AuditLog
 from vigil.agents import (
     MAX_ROUNDS,
     MAX_TOOL_CALLS,
@@ -13,6 +18,7 @@ from vigil.agents import (
     Context,
     Diagnosis,
     Plan,
+    ProposalAnswer,
     Specialist,
     Task,
     bind_tool,
@@ -21,6 +27,7 @@ from vigil.agents import (
     run_specialist,
     structured_answer,
 )
+from vigil.memory import WORD, Document, LocalStore, Memory, load_runbooks
 
 
 class FakeModel:
@@ -176,8 +183,51 @@ DIAGNOSIS = Diagnosis(
 )
 
 
+PAST = Document(
+    "incident-0",
+    "incident",
+    "Incident incident-0: payments service crash",
+    "payments crashed and a restart fixed it",
+    pd.Timestamp("2026-11-04T10:00:00Z"),
+)
+START_STATE = {"id": "incident-1", "alert": "alert", "alert_at": "2026-11-04T12:00:00+00:00"}
+
+
+def bag_of_words(texts):
+    """A stand-in embedding: words hashed into a fixed-size vector."""
+    vectors = np.zeros((len(texts), 64), dtype=np.float32)
+    for row, text in enumerate(texts):
+        for word in WORD.findall(text.lower()):
+            vectors[row, zlib.crc32(word.encode()) % 64] += 1
+    return vectors
+
+
+def proposal(**changes) -> ProposalAnswer:
+    fields = {
+        "action": "restart_service",
+        "service": "payments",
+        "rationale": "payments crashed; the service-down runbook says restart it",
+        "runbook": "service-down",
+        "expected_outcome": "payments up again",
+        "cited_incidents": ["incident-0", "made-up-incident"],
+    }
+    return ProposalAnswer(**(fields | changes))
+
+
+class RecordingExecutor:
+    dry_run = False
+
+    def __init__(self):
+        self.calls = []
+
+    def execute(self, proposal):
+        self.calls.append(proposal.service)
+        return {"service": proposal.service, "ready": True}
+
+
 def scripted_investigation(monkeypatch, one_tool):
-    """Round 1 asks metrics a question; round 2 has enough evidence; then a diagnosis."""
+    """Round 1 asks metrics a question; round 2 has enough evidence; then a diagnosis, a
+    proposal and, after review, a report."""
     first = Plan(reasoning="unclear", tasks=[Task(agent="metrics", question="Is payments up?")])
     done = Plan(reasoning="payments is down", tasks=[])
     specialist = FakeModel([tool_call("probe", service="payments"), AIMessage("payments down")])
@@ -186,11 +236,20 @@ def scripted_investigation(monkeypatch, one_tool):
         planner=[FakeModel(structured={Plan: [first, done]})],
         metrics=[specialist],
         diagnosis=[FakeModel(structured={Diagnosis: [DIAGNOSIS]})],
+        remediation=[FakeModel(structured={ProposalAnswer: [proposal()]})],
+        comms=[FakeModel([AIMessage("# Incident report")])],
     )
 
 
+@pytest.fixture
+def memory():
+    memory = Memory(LocalStore(), bag_of_words, lambda q, texts: [0.0] * len(texts))
+    memory.add(load_runbooks() + [PAST])
+    return memory
+
+
 def test_investigation_pauses_for_review_and_resumes_from_the_checkpoint(
-    monkeypatch, one_tool, tmp_path
+    monkeypatch, one_tool, tmp_path, memory
 ):
     scripted_investigation(monkeypatch, one_tool)
     database = tmp_path / "vigil.db"
@@ -198,25 +257,54 @@ def test_investigation_pauses_for_review_and_resumes_from_the_checkpoint(
 
     with sqlite3.connect(database, check_same_thread=False) as connection:
         graph = build_graph(SqliteSaver(connection))
-        paused = graph.invoke({"alert": "alert"}, config, context=Context(evidence="down"))
+        context = Context(evidence="down", memory=memory)
+        paused = graph.invoke(START_STATE, config, context=context)
 
-    assert paused["__interrupt__"][0].value == {"diagnosis": DIAGNOSIS.model_dump()}
+    waiting = paused["__interrupt__"][0].value
+    assert waiting["diagnosis"] == DIAGNOSIS.model_dump()
+    assert "incident-0" in waiting["recalled"]  # the earlier incident is remembered
+    assert len(waiting["recalled"]) == agents.RUNBOOKS_RECALLED + 1  # plus the top runbooks
+    assert waiting["proposal"]["cited_incidents"] == ["incident-0"]  # the invented one is dropped
     assert [f["report"] for f in paused["findings"]] == ["payments down"]
     assert paused["models"] == [
         "plan: fake/0",
         "metrics: fake/0",
         "plan: fake/0",
         "diagnosis: fake/0",
+        "remediation: fake/0",
     ]
 
     # A new process: a fresh graph on the same database picks up where the first one stopped.
+    executor, audit = RecordingExecutor(), AuditLog(tmp_path / "audit.jsonl")
     with sqlite3.connect(database, check_same_thread=False) as connection:
         graph = build_graph(SqliteSaver(connection))
-        decision = {"verdict": "confirmed", "notes": "matches what I saw"}
-        finished = graph.invoke(Command(resume=decision), config, context=Context(evidence=None))
+        decision = {"verdict": "confirmed", "notes": "", "approve": True, "by": "aman"}
+        context = Context(evidence=None, memory=memory, executor=executor, audit=audit)
+        finished = graph.invoke(Command(resume=decision), config, context=context)
 
     assert finished["review"] == decision
-    assert finished["diagnosis"]["root_cause_service"] == "payments"
+    assert executor.calls == ["payments"]
+    assert finished["action"]["outcome"] == "executed"
+    assert audit.entries()[0]["approved_by"] == "aman"
+    assert finished["report"] == "# Incident report"
+    remembered = memory.search("payments crash", kinds=["incident"], limit=5)
+    assert "incident-1" in [hit.document.id for hit in remembered]
+
+
+def test_a_rejected_proposal_changes_nothing(monkeypatch, one_tool, tmp_path, memory):
+    scripted_investigation(monkeypatch, one_tool)
+    graph = build_graph(InMemorySaver())
+    config = {"configurable": {"thread_id": "incident-1"}}
+    graph.invoke(START_STATE, config, context=Context(evidence="down", memory=memory))
+    executor = RecordingExecutor()
+
+    decision = {"verdict": "corrected", "notes": "it was orders", "approve": False, "by": "aman"}
+    context = Context(None, memory, executor, AuditLog(tmp_path / "audit.jsonl"))
+    finished = graph.invoke(Command(resume=decision), config, context=context)
+
+    assert executor.calls == []
+    assert finished["action"]["outcome"] == "rejected"
+    assert finished["action"]["reasons"] == ["it was orders"]
 
 
 def test_investigation_stops_asking_after_max_rounds(monkeypatch, one_tool):
@@ -229,12 +317,12 @@ def test_investigation_stops_asking_after_max_rounds(monkeypatch, one_tool):
         planner=[FakeModel(structured={Plan: [keep_asking] * MAX_ROUNDS})],
         metrics=[FakeModel(replies)],
         diagnosis=[FakeModel(structured={Diagnosis: [DIAGNOSIS]})],
+        remediation=[FakeModel(structured={ProposalAnswer: [proposal()]})],
     )
-    from langgraph.checkpoint.memory import InMemorySaver
 
     graph = build_graph(InMemorySaver())
     state = graph.invoke(
-        {"alert": "a"}, {"configurable": {"thread_id": "t"}}, context=Context(evidence="x")
+        START_STATE, {"configurable": {"thread_id": "t"}}, context=Context(evidence="x")
     )
 
     assert len(state["findings"]) == MAX_ROUNDS

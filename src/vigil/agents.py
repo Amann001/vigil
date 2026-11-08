@@ -1,14 +1,20 @@
 """The investigation: a supervisor agent directing specialist agents, as a LangGraph graph.
 
-    alert -> plan -> specialists (in parallel) -> plan -> ... -> diagnose -> human review
+    alert -> plan -> specialists (in parallel) -> plan -> ... -> diagnose
+          -> recall -> propose -> human review -> act -> report -> remember
 
 - plan: the supervisor reads the alert and the findings so far, and either asks specialists
   focused questions or decides it has enough evidence. At most MAX_ROUNDS rounds.
 - specialists (metrics, logs, deploy): each answers its question by calling its own tools in a
   loop, then reports what it found with numbers and times.
 - diagnose: the supervisor writes a structured root-cause diagnosis from the findings.
-- review: the graph pauses until a human confirms or corrects the diagnosis. Every step is
-  checkpointed, so the review can happen later, from another process.
+- recall: runbooks and earlier incidents like this diagnosis are found in memory.
+- propose: the remediation agent proposes one action from the catalogue, citing what it used.
+- review: the graph pauses until a human confirms or corrects the diagnosis and approves or
+  rejects the proposal. Every step is checkpointed, so this can happen later, elsewhere.
+- act: an approved proposal runs if the guardrails allow it (vigil.actions).
+- report: the communications agent writes the incident report.
+- remember: the reviewed incident is stored in memory for future investigations.
 
 Every model call tries the role's models in order (see vigil.llm) and records which one
 answered, because free tiers fail over often and results must say which model produced them.
@@ -19,6 +25,7 @@ import operator
 from dataclasses import dataclass
 from typing import Annotated, Literal, TypedDict
 
+import pandas as pd
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 from langgraph.graph import END, START, StateGraph
@@ -27,7 +34,9 @@ from langgraph.types import Send, interrupt
 from pydantic import BaseModel, Field
 
 from vigil import llm, tools
+from vigil.actions import ACTIONS, AuditLog, DryRunExecutor, Executor, Proposal, carry_out
 from vigil.evidence import Evidence
+from vigil.memory import Memory, incident_document
 
 MAX_ROUNDS = 2
 MAX_TOOL_CALLS = 5  # model turns per specialist per question
@@ -131,20 +140,32 @@ low confidence rather than guessing."""
 
 
 class Investigation(TypedDict, total=False):
+    id: str
     alert: str
+    alert_at: str
     round: int
     tasks: list[dict]
     findings: Annotated[list[dict], operator.add]
     models: Annotated[list[str], operator.add]  # which model answered each step
     diagnosis: dict
-    review: dict
+    recalled: list[dict]  # runbooks and past incidents found in memory
+    proposal: dict
+    review: dict  # the human's decision: verdict, notes, approve, by
+    action: dict  # what happened to the proposal (see vigil.actions.carry_out)
+    report: str  # the incident report
 
 
 @dataclass
 class Context:
-    """Runtime context: not checkpointed, so a paused investigation can resume without it."""
+    """Runtime context: not checkpointed, so it is supplied again when an investigation resumes.
+
+    Without memory nothing is recalled or remembered; without an executor actions are dry runs.
+    """
 
     evidence: Evidence
+    memory: Memory | None = None
+    executor: Executor | None = None
+    audit: AuditLog | None = None
 
 
 def _failure(name: str, error: Exception) -> str:
@@ -299,21 +320,169 @@ def diagnose(state: Investigation) -> dict:
     return {"diagnosis": result.model_dump(), "models": [f"diagnosis: {model}"]}
 
 
+RUNBOOKS_RECALLED = 2
+INCIDENTS_RECALLED = 3
+
+
+def _diagnosis_query(diagnosis: dict) -> str:
+    category = diagnosis["category"].replace("_", " ")
+    return f"{diagnosis['root_cause_service']} {category}. {diagnosis['summary']}"
+
+
+def recall(state: Investigation, runtime: Runtime[Context]) -> dict:
+    """Find the runbooks and past incidents most like this diagnosis.
+
+    The diagnosis is the query, not the alert: measured on the campaign, searching with a raw
+    alert (a list of metric names) put the wrong runbook first every time."""
+    memory = runtime.context.memory
+    if memory is None:
+        return {"recalled": []}
+    query = _diagnosis_query(state["diagnosis"])
+    runbooks = memory.search(query, kinds=["runbook"], limit=RUNBOOKS_RECALLED)
+    incidents = memory.search(
+        query,
+        kinds=["incident"],
+        before=pd.Timestamp(state["alert_at"]),
+        exclude=state["id"],
+        limit=INCIDENTS_RECALLED,
+    )
+    recalled = [
+        {
+            "id": hit.document.id,
+            "kind": hit.document.kind,
+            "title": hit.document.title,
+            "body": hit.document.body,
+        }
+        for hit in runbooks + incidents
+    ]
+    return {"recalled": recalled}
+
+
+class ProposalAnswer(Proposal):
+    cited_incidents: list[str] = Field(
+        description="Ids of the past incidents that informed this proposal; empty if none did"
+    )
+
+
+PROPOSE_PROMPT = """\
+You are the remediation agent of an on-call team. Propose exactly one action to fix the
+diagnosed root cause, following the runbooks below. A human approves or rejects your proposal
+before anything happens.
+{architecture}
+
+Available actions:
+{actions}
+
+Rules:
+- Act only on the root-cause service, never on services that are only affected by it.
+- Propose escalate if no action would fix the cause safely, the root cause is unknown, or the
+  diagnosis has low confidence.
+- Cite the past incidents (by id) that informed the proposal, and none that did not.
+
+{recalled}"""
+
+
+def _recalled_text(recalled: list[dict]) -> str:
+    if not recalled:
+        return "No runbooks or past incidents were found in memory."
+    blocks = [f"[{r['kind']} {r['id']}] {r['title']}\n{r['body']}" for r in recalled]
+    return "From memory:\n\n" + "\n\n".join(blocks)
+
+
+def propose(state: Investigation) -> dict:
+    actions = "\n".join(f"- {name}: {a.description}" for name, a in ACTIONS.items())
+    prompt = PROPOSE_PROMPT.format(
+        architecture=ARCHITECTURE,
+        actions=actions,
+        recalled=_recalled_text(state.get("recalled", [])),
+    )
+    result, model = structured_answer(
+        "remediation",
+        ProposalAnswer,
+        [SystemMessage(prompt), HumanMessage(f"Diagnosis:\n{state['diagnosis']}")],
+    )
+    proposal = result.model_dump()
+    # Only incidents that were actually recalled can be cited; anything else is invented.
+    known = {r["id"] for r in state.get("recalled", []) if r["kind"] == "incident"}
+    proposal["cited_incidents"] = [i for i in proposal["cited_incidents"] if i in known]
+    return {"proposal": proposal, "models": [f"remediation: {model}"]}
+
+
 def review(state: Investigation) -> dict:
-    """Pause until a human confirms or corrects the diagnosis (resumed with Command(resume=...))."""
-    decision = interrupt({"diagnosis": state["diagnosis"]})
+    """Pause until a human reviews the diagnosis and approves or rejects the proposal.
+
+    Resumed with Command(resume={"verdict": "confirmed" | "corrected", "notes": ...,
+    "approve": bool, "by": ...})."""
+    decision = interrupt(
+        {
+            "diagnosis": state["diagnosis"],
+            "proposal": state["proposal"],
+            "recalled": [r["id"] for r in state.get("recalled", [])],
+        }
+    )
     return {"review": decision}
+
+
+def act(state: Investigation, runtime: Runtime[Context]) -> dict:
+    """Carry out the proposal if the human approved it and the guardrails allow it."""
+    decision = state["review"]
+    fields = {k: v for k, v in state["proposal"].items() if k in Proposal.model_fields}
+    entry = carry_out(
+        Proposal(**fields),
+        {
+            "approved": decision.get("approve", False),
+            "by": decision.get("by"),
+            "notes": decision.get("notes"),
+        },
+        runtime.context.executor or DryRunExecutor(),
+        runtime.context.audit or AuditLog(),
+        incident=state["id"],
+    )
+    return {"action": entry}
+
+
+REPORT_PROMPT = """\
+You are the communications agent of an on-call team. Write the incident report in Markdown
+with these sections: Summary, Impact, Root cause, Evidence, Resolution, Follow-ups, Similar
+past incidents. Use only the facts given; do not invent times, numbers or actions. If the
+action was a dry run, rejected or refused, say so plainly: nothing was changed."""
+
+
+def report(state: Investigation) -> dict:
+    facts = {key: state.get(key) for key in ("alert", "diagnosis", "proposal", "review", "action")}
+    reply, model = first_answer(
+        llm.models_for("comms"),
+        [SystemMessage(REPORT_PROMPT), HumanMessage(f"Facts:\n{facts}")],
+    )
+    return {"report": reply.text, "models": [f"comms: {model}"]}
+
+
+def remember(state: Investigation, runtime: Runtime[Context]) -> dict:
+    """Store the reviewed incident, with the human's verdict and the action's outcome."""
+    if runtime.context.memory is not None:
+        record = {
+            key: state.get(key) for key in ("id", "alert_at", "diagnosis", "review", "action")
+        }
+        runtime.context.memory.add([incident_document(record)])
+    return {}
 
 
 def build_graph(checkpointer=None):
     graph = StateGraph(Investigation, context_schema=Context)
-    graph.add_node("plan", plan)
-    graph.add_node("specialist", specialist)
-    graph.add_node("diagnose", diagnose)
-    graph.add_node("review", review)
+    steps = [plan, specialist, diagnose, recall, propose, review, act, report, remember]
+    for step in steps:
+        graph.add_node(step.__name__, step)
     graph.add_edge(START, "plan")
     graph.add_conditional_edges("plan", route, ["specialist", "diagnose"])
     graph.add_edge("specialist", "plan")
-    graph.add_edge("diagnose", "review")
-    graph.add_edge("review", END)
+    for before, after in [
+        ("diagnose", "recall"),
+        ("recall", "propose"),
+        ("propose", "review"),
+        ("review", "act"),
+        ("act", "report"),
+        ("report", "remember"),
+        ("remember", END),
+    ]:
+        graph.add_edge(before, after)
     return graph.compile(checkpointer=checkpointer)

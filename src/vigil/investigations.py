@@ -22,9 +22,11 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from shop.config import DATA_DIR, PROJECT_ROOT
+from vigil.actions import AuditLog, Executor
 from vigil.agents import Context, build_graph
 from vigil.alerts import Alert
 from vigil.evidence import Evidence
+from vigil.memory import Memory
 
 DB_PATH = DATA_DIR / "vigil.db"
 REPORTS_DIR = DATA_DIR / "investigations"
@@ -59,6 +61,16 @@ def open_graph(store: Store | None = None) -> Iterator:
         connection.close()
 
 
+def product_memory() -> Memory:
+    """Vigil's memory: in Postgres when a database is configured, with the runbooks loaded."""
+    from vigil.memory import load_runbooks, open_memory
+
+    store = default_store()
+    memory = open_memory(store if _is_postgres(store) else None)
+    memory.add(load_runbooks())  # an upsert: runbook edits are picked up on the next run
+    return memory
+
+
 def _config(investigation_id: str) -> dict:
     return {"configurable": {"thread_id": investigation_id}}
 
@@ -73,26 +85,33 @@ def investigate(
     investigation_id: str,
     alert: Alert,
     evidence: Evidence,
+    memory: Memory | None = None,
     store: Store | None = None,
     reports_dir: Path = REPORTS_DIR,
 ) -> dict:
-    """Investigate an alert until the diagnosis is ready for human review.
+    """Investigate an alert until the diagnosis and the proposed fix await human review.
 
     An investigation that was interrupted part-way (the process stopped) continues from its
     last checkpoint. One that already reached review is started again from scratch.
     """
     started = time.monotonic()
     config = _config(investigation_id)
+    context = Context(evidence, memory=memory)
     with open_graph(store) as graph:
         pending = graph.get_state(config).next
         resumed = bool(pending) and pending != ("review",)
         if resumed:
             # Passing new input would restart the graph and skip the interrupted steps (an
             # interrupted run lost its second round of questions this way); None continues them.
-            state = graph.invoke(None, config, context=Context(evidence))
+            state = graph.invoke(None, config, context=context)
         else:
             graph.checkpointer.delete_thread(investigation_id)  # no-op for a new investigation
-            state = graph.invoke({"alert": alert.describe()}, config, context=Context(evidence))
+            start = {
+                "id": investigation_id,
+                "alert": alert.describe(),
+                "alert_at": alert.detected_at.isoformat(),
+            }
+            state = graph.invoke(start, config, context=context)
     report = {
         "id": investigation_id,
         "status": "awaiting review",
@@ -104,6 +123,8 @@ def investigate(
         "findings": state.get("findings", []),
         "models": state.get("models", []),
         "diagnosis": state["diagnosis"],
+        "recalled": [r["id"] for r in state.get("recalled", [])],
+        "proposal": state.get("proposal"),
     }
     _write_report(report, reports_dir)
     return report
@@ -113,25 +134,45 @@ def review(
     investigation_id: str,
     verdict: Verdict,
     notes: str = "",
+    approve: bool = False,
+    by: str = "reviewer",
+    memory: Memory | None = None,
+    executor: Executor | None = None,
     store: Store | None = None,
     reports_dir: Path = REPORTS_DIR,
+    audit: AuditLog | None = None,
 ) -> dict:
-    """Record a human's verdict on a paused investigation and finish it."""
+    """Record a human's decision on a paused investigation and finish it: the proposal runs
+    only if approved (and allowed by the guardrails), then the incident report is written and
+    the incident is remembered."""
     report_path = reports_dir / f"{investigation_id}.json"
     if not report_path.exists():
         raise KeyError(f"No investigation {investigation_id!r}")
     decision = {
         "verdict": verdict,
         "notes": notes,
+        "approve": approve,
+        "by": by,
         "at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
     }
+    context = Context(None, memory=memory, executor=executor, audit=audit)
     with open_graph(store) as graph:
-        if not graph.get_state(_config(investigation_id)).next:
+        if graph.get_state(_config(investigation_id)).next != ("review",):
             raise ValueError(f"Investigation {investigation_id!r} is not awaiting review")
-        graph.invoke(Command(resume=decision), _config(investigation_id), context=Context(None))
+        state = graph.invoke(Command(resume=decision), _config(investigation_id), context=context)
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    report |= {"status": verdict, "review": decision}
+    report |= {
+        "status": verdict,
+        "review": decision,
+        "action": state.get("action"),
+        "incident_report": state.get("report"),
+        "models": state.get("models", report["models"]),
+    }
     _write_report(report, reports_dir)
+    if report["incident_report"]:
+        (reports_dir / f"{investigation_id}.md").write_text(
+            report["incident_report"], encoding="utf-8"
+        )
     return report
 
 
@@ -159,6 +200,19 @@ def format_report(report: dict) -> str:
         "",
         "Models: " + ", ".join(dict.fromkeys(report["models"])),
     ]
+    if proposal := report.get("proposal"):
+        target = f" {proposal['service']}" if proposal.get("service") else ""
+        cited = ", ".join(proposal.get("cited_incidents") or []) or "none"
+        lines += [
+            "",
+            f"Proposed fix: {proposal['action']}{target}",
+            f"  why: {proposal['rationale']}",
+            f"  runbook: {proposal.get('runbook') or '-'}; similar past incidents: {cited}",
+        ]
     if "review" in report:
         lines.append(f"Review: {report['review']['verdict']} {report['review']['notes']}".rstrip())
+    if action := report.get("action"):
+        reasons = "; ".join(action.get("reasons") or [])
+        dry = " (dry run)" if action.get("dry_run") else ""
+        lines.append(f"Action: {action['outcome']}{dry} {reasons}".rstrip())
     return "\n".join(lines)

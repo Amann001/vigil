@@ -13,7 +13,8 @@ import pandas as pd
 
 from vigil.alerts import Alert, AlertDetector
 from vigil.evidence import LiveEvidence
-from vigil.investigations import format_report, investigate
+from vigil.investigations import format_report, investigate, product_memory
+from vigil.memory import Memory
 from vigil.shop_benchmark import latest_dataset, load
 from vigil.telemetry import PROMETHEUS_URL, STEP_SECONDS, fetch_features
 
@@ -45,6 +46,7 @@ def watch(
     detector: AlertDetector,
     on_report: Callable[[dict], None] = lambda r: print(format_report(r)),
     max_alerts: int | None = None,
+    memory: Memory | None = None,
 ) -> None:
     quiet_until = pd.Timestamp.now(tz="UTC")
     handled = 0
@@ -59,16 +61,18 @@ def watch(
         print("Investigating ...", flush=True)
         identifier = f"live-{alert.detected_at:%Y%m%dT%H%M%SZ}"
         evidence = LiveEvidence(client, as_of=pd.Timestamp.now(tz="UTC").floor("s"))
-        on_report(investigate(identifier, alert, evidence))
+        on_report(investigate(identifier, alert, evidence, memory=memory))
+        print(f"Review it with: vigil review {identifier} --confirm --approve (or --reject)")
         handled += 1
         quiet_until = pd.Timestamp.now(tz="UTC") + COOLDOWN
 
 
 def main(max_alerts: int | None = None) -> None:
     detector = trained_detector()
+    memory = product_memory()
     print(f"Watching {PROMETHEUS_URL} every {POLL_SECONDS} s. Press Ctrl+C to stop.", flush=True)
     with httpx.Client(base_url=PROMETHEUS_URL, timeout=30) as client:
         try:
-            watch(client, detector, max_alerts=max_alerts)
+            watch(client, detector, max_alerts=max_alerts, memory=memory)
         except KeyboardInterrupt:
             print("Stopped watching.")

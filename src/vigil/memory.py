@@ -7,7 +7,7 @@ Four ways of searching are implemented and measured (vigil.memory_eval):
 - hybrid: both rankings merged with reciprocal rank fusion;
 - hybrid+rerank: the fused candidates re-scored by a cross-encoder (ms-marco MiniLM).
 Vector search is the default because it measured best: searching with a diagnosis, it put the
-right runbook first 11 times out of 11, against 8 for hybrid with reranking.
+right runbook first 11 times out of 11, against 9 for hybrid with reranking.
 
 Memory respects time: a search can be limited to incidents that happened before a moment, so a
 replayed investigation only remembers incidents that came before it.

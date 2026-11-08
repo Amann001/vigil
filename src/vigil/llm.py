@@ -37,6 +37,8 @@ ROLES = {
     "metrics": [GROQ_LARGE, GEMINI_LITE],
     "logs": [GROQ_SMALL, GEMINI_LITE],
     "deploy": [GEMINI_LITE, GROQ_SMALL],
+    "remediation": [GROQ_LARGE, GEMINI_LITE],
+    "comms": [GROQ_SMALL, GEMINI_LITE],
 }
 TIMEOUT_SECONDS = 90
 # Rate-limit errors say how long to wait; retrying a few times rides out a busy minute before

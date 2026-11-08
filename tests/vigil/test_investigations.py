@@ -51,6 +51,10 @@ def store(monkeypatch, tmp_path):
     return tmp_path
 
 
+def paths(store) -> dict:
+    return {"store": store / "vigil.db", "reports_dir": store / "reports"}
+
+
 def run(store, identifier="replay-x-03"):
     return investigations.investigate(
         identifier, ALERT, evidence=None, store=store / "vigil.db", reports_dir=store / "reports"
@@ -68,14 +72,12 @@ def test_investigation_is_saved_awaiting_review(store):
 def test_review_resumes_the_paused_investigation(store):
     run(store)
 
-    report = investigations.review(
-        "replay-x-03", "corrected", "it was a leak", store / "vigil.db", store / "reports"
-    )
+    report = investigations.review("replay-x-03", "corrected", "it was a leak", **paths(store))
 
     assert report["status"] == "corrected"
     assert report["review"]["notes"] == "it was a leak"
     with pytest.raises(ValueError, match="not awaiting review"):
-        investigations.review("replay-x-03", "confirmed", "", store / "vigil.db", store / "reports")
+        investigations.review("replay-x-03", "confirmed", **paths(store))
 
 
 class Flaky:
@@ -151,7 +153,7 @@ def test_checkpoints_go_to_postgres_when_configured_and_sqlite_otherwise(
 
 def test_review_of_an_unknown_investigation_fails(store):
     with pytest.raises(KeyError):
-        investigations.review("nope", "confirmed", "", store / "vigil.db", store / "reports")
+        investigations.review("nope", "confirmed", **paths(store))
 
 
 def test_cli_lists_shows_and_reviews(store, capsys, monkeypatch):
@@ -164,11 +166,12 @@ def test_cli_lists_shows_and_reviews(store, capsys, monkeypatch):
     monkeypatch.setattr(
         vigil.cli,
         "review",
-        lambda i, v, n="": investigations.review(i, v, n, store / "vigil.db", store / "reports"),
+        lambda i, v, n="", **kw: investigations.review(i, v, n, **paths(store)),
     )
 
     cli(["list"])
-    cli(["review", "replay-x-03", "--confirm"])
+    monkeypatch.setattr(investigations, "product_memory", lambda: None)
+    cli(["review", "replay-x-03", "--confirm", "--reject"])
 
     output = capsys.readouterr().out
     assert "replay-x-03" in output and "payments service_crash (high)" in output
