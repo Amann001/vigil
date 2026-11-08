@@ -272,6 +272,12 @@ def run(recording: Path, config: str, hidden: bool) -> dict:
     truth = json.loads((recording / "truth.json").read_text(encoding="utf-8"))
     metrics = pd.read_csv(recording / "metrics.csv.gz", index_col="timestamp", parse_dates=True)
     alerts = trained_detector().alerts(metrics[meta["features"]])
+    if hidden:
+        # Traces hold alerts, findings and diagnoses; a hidden set's must not leave this
+        # machine where its builders could read them.
+        from vigil import tracing
+
+        tracing.enabled = lambda: False
     if config == "one-model":  # no routing: the same small model for every role
         llm.ROLES = {role: [llm.GEMINI_LITE, llm.GROQ_SMALL] for role in llm.ROLES}
     memory = None if config == "no-memory" else experience_memory()

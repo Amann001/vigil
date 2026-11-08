@@ -127,3 +127,29 @@ def test_play_carries_out_steps_in_order(monkeypatch, tmp_path):
 
     assert done == [(10, "traffic x2"), (60, "orders")]
     assert problems == [] and clock[0] == pytest.approx(scenario.window_seconds)
+
+
+def test_a_hidden_run_sends_no_traces(monkeypatch, tmp_path):
+    import json
+
+    from vigil import tracing
+
+    monkeypatch.setattr(tracing, "enabled", lambda: True)
+    (tmp_path / "meta.json").write_text(
+        json.dumps({"features": ["x"], "warmup_ends_at": START.isoformat()})
+    )
+    (tmp_path / "truth.json").write_text("[]")
+    pd.DataFrame({"x": [1.0]}, index=pd.DatetimeIndex([START], name="timestamp")).to_csv(
+        tmp_path / "metrics.csv.gz"
+    )
+
+    class NoAlerts:
+        def alerts(self, features):
+            return []
+
+    monkeypatch.setattr("vigil.watch.trained_detector", lambda: NoAlerts())
+    monkeypatch.setattr(exam, "experience_memory", lambda: None)
+
+    exam.run(tmp_path, "full", hidden=True)
+
+    assert tracing.enabled() is False
