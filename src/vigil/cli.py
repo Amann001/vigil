@@ -4,6 +4,7 @@ vigil watch                     watch the live shop; each alert becomes a job fo
 vigil worker                    run queued jobs (start several; a crashed one's jobs are resumed)
 vigil jobs                      the job queue
 vigil api                       the HTTP API for the UI (reviews need VIGIL_API_TOKEN)
+vigil exam check|record|run     the evaluation (docs/SCENARIOS.md)
 vigil replay N [--queue]        investigate alert N of the latest recorded campaign
 vigil list                      every investigation and its status
 vigil show ID                   one investigation: diagnosis and proposed fix
@@ -91,12 +92,19 @@ def _find(identifier: str) -> dict:
 
 
 def main(argv: list[str] | None = None) -> None:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["exam"]:  # its own subcommands; see vigil.exam
+        from vigil.exam import main as exam
+
+        exam(argv[1:])
+        return
     parser = argparse.ArgumentParser(prog="vigil", description="The AI on-call engineer.")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("watch", help="watch the live shop; each alert becomes a job")
     commands.add_parser("worker", help="run queued jobs")
     commands.add_parser("jobs", help="the job queue")
     commands.add_parser("api", help="serve the HTTP API on 127.0.0.1:8030")
+    commands.add_parser("exam", help="evaluation scenarios: vigil exam --help")
     replay = commands.add_parser("replay", help="investigate an alert of the latest campaign")
     replay.add_argument("number", type=int)
     replay.add_argument("--queue", action="store_true", help="queue it for the workers")
