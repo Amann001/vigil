@@ -122,3 +122,45 @@ def test_a_job_whose_worker_died_on_the_last_attempt_is_given_up(queue):
     assert queue.claim("worker-b") is None
     (row,) = queue.jobs()
     assert row["status"] == "failed" and "last attempt" in row["last_error"]
+
+
+def test_a_worker_runs_a_job_and_records_its_result(queue, schema):
+    from vigil.worker import run_once
+
+    queue.enqueue("investigate", {"id": "incident-1"})
+    seen = []
+
+    job = run_once(queue, queue, "worker-a", {"investigate": lambda p: seen.append(p) or {"ok": 1}})
+
+    assert seen == [{"id": "incident-1"}]
+    assert job.kind == "investigate" and queue.counts() == {"done": 1}
+    assert run_once(queue, queue, "worker-a", {}) is None  # nothing left
+
+
+def test_a_job_that_raises_is_queued_again_with_its_error(queue):
+    from vigil.worker import run_once
+
+    queue.enqueue("investigate", {"id": "incident-1"})
+
+    def rate_limited(payload):
+        raise RuntimeError("Every diagnosis model failed")
+
+    run_once(queue, queue, "worker-a", {"investigate": rate_limited})
+
+    (row,) = queue.jobs()
+    assert row["status"] == "queued" and "Every diagnosis model failed" in row["last_error"]
+
+
+def test_enqueueing_the_same_investigation_twice_queues_it_once(queue):
+    import pandas as pd
+
+    from vigil.alerts import Alert, Signal
+    from vigil.worker import enqueue_investigation
+
+    alert = Alert(pd.Timestamp("2026-11-08T12:00:00Z"), (Signal("payments.up", 0, 1, 1000),))
+
+    first = enqueue_investigation(queue, "live-1", alert, alert.detected_at, mode="live")
+    again = enqueue_investigation(queue, "live-1", alert, alert.detected_at, mode="live")
+
+    assert first is not None and again is None
+    assert queue.claim("worker-a").payload["alert"] == alert.to_dict()

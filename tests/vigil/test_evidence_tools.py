@@ -173,3 +173,18 @@ def test_agents_never_read_ground_truth():
         text = (source / module).read_text(encoding="utf-8")
         for name in forbidden:
             assert name not in text, f"{module} mentions {name}"
+
+
+def test_an_alert_survives_the_trip_through_a_job():
+    from vigil.alerts import Alert, Signal
+
+    alert = Alert(
+        pd.Timestamp("2026-11-08T12:00:00Z"),
+        (Signal("payments.up", 0.0, 1.0, 1000.0), Signal("payments.memory_mb", np.nan, 55, 15)),
+    )
+
+    data = json.loads(json.dumps(alert.to_dict()))  # what the queue stores
+    back = Alert.from_dict(data)
+
+    assert data["signals"][1]["value"] is None  # JSON has no NaN
+    assert back.describe() == alert.describe()

@@ -1,7 +1,9 @@
 """Vigil's command line.
 
-vigil watch                     watch the live shop and investigate each alert
-vigil replay N                  investigate alert N of the latest recorded campaign
+vigil watch                     watch the live shop; each alert becomes a job for the workers
+vigil worker                    run queued jobs (start several; a crashed one's jobs are resumed)
+vigil jobs                      the job queue
+vigil replay N [--queue]        investigate alert N of the latest recorded campaign
 vigil list                      every investigation and its status
 vigil show ID                   one investigation: diagnosis and proposed fix
 vigil review ID --confirm --approve
@@ -22,7 +24,16 @@ import sys
 from vigil.investigations import format_report, load_reports, review
 
 
-def _replay(number: int) -> None:
+def _database() -> str:
+    from vigil.investigations import _is_postgres, default_store
+
+    store = default_store()
+    if not _is_postgres(store):
+        sys.exit("The job queue needs a Postgres database: set DATABASE_URL in .env.")
+    return store
+
+
+def _replay(number: int, queued: bool) -> None:
     from vigil.agent_eval import investigation_id, replay_alerts
     from vigil.evidence import ReplayEvidence
     from vigil.investigations import investigate, product_memory
@@ -33,6 +44,17 @@ def _replay(number: int) -> None:
     if not 1 <= number <= len(alerts):
         sys.exit(f"The latest campaign has alerts 1 to {len(alerts)}.")
     alert = alerts[number - 1]
+    if queued:
+        from vigil.queue import Queue
+        from vigil.worker import enqueue_investigation
+
+        identifier = investigation_id(dataset, number)
+        queue = Queue(_database())
+        job = enqueue_investigation(
+            queue, identifier, alert, alert.detected_at, mode="replay", dataset=dataset
+        )
+        print(f"Queued {identifier} as job {job}." if job else f"{identifier} is already queued.")
+        return
     print(alert.describe(), "\nInvestigating ...", flush=True)
     report = investigate(
         investigation_id(dataset, number),
@@ -70,9 +92,12 @@ def _find(identifier: str) -> dict:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="vigil", description="The AI on-call engineer.")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("watch", help="watch the live shop and investigate each alert")
+    commands.add_parser("watch", help="watch the live shop; each alert becomes a job")
+    commands.add_parser("worker", help="run queued jobs")
+    commands.add_parser("jobs", help="the job queue")
     replay = commands.add_parser("replay", help="investigate an alert of the latest campaign")
     replay.add_argument("number", type=int)
+    replay.add_argument("--queue", action="store_true", help="queue it for the workers")
     commands.add_parser("list", help="every investigation and its status")
     show = commands.add_parser("show", help="one investigation: diagnosis and proposed fix")
     show.add_argument("id")
@@ -98,7 +123,22 @@ def main(argv: list[str] | None = None) -> None:
 
         watch()
     elif args.command == "replay":
-        _replay(args.number)
+        _replay(args.number, args.queue)
+    elif args.command == "worker":
+        from vigil.worker import main as work
+
+        work(_database())
+    elif args.command == "jobs":
+        from vigil.queue import Queue
+
+        queue = Queue(_database())
+        print(f"Jobs by status: {queue.counts() or 'none'}")
+        for job in queue.jobs(limit=20):
+            error = f"  last error: {job['last_error'][:80]}" if job["last_error"] else ""
+            print(
+                f"{job['id']:>5} {job['kind']:<12} {job['status']:<8} attempt "
+                f"{job['attempts']}/{job['max_attempts']}  {job['key']}{error}"
+            )
     elif args.command == "list":
         reports = load_reports()
         if not reports:

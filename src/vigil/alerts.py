@@ -39,6 +39,23 @@ class Alert:
             lines.append(f"- {s.feature}: {value}, usual {s.usual:.4g}, {s.deviations:.0f}x")
         return "\n".join(lines)
 
+    def to_dict(self) -> dict:
+        """For storing in a job: JSON has no NaN, so a missing value becomes None."""
+        return {
+            "detected_at": self.detected_at.isoformat(),
+            "signals": [
+                {**vars(s), "value": None if pd.isna(s.value) else s.value} for s in self.signals
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Alert":
+        signals = tuple(
+            Signal(**(s | {"value": float("nan") if s["value"] is None else s["value"]}))
+            for s in data["signals"]
+        )
+        return cls(pd.Timestamp(data["detected_at"]), signals)
+
 
 class AlertDetector:
     def __init__(self, quantile: float = QUANTILE, min_consecutive: int = MIN_CONSECUTIVE) -> None:

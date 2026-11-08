@@ -13,10 +13,12 @@ import pandas as pd
 
 from vigil.alerts import Alert, AlertDetector
 from vigil.evidence import LiveEvidence
-from vigil.investigations import format_report, investigate, product_memory
+from vigil.investigations import default_store, format_report, investigate, product_memory
 from vigil.memory import Memory
+from vigil.queue import Queue
 from vigil.shop_benchmark import latest_dataset, load
 from vigil.telemetry import PROMETHEUS_URL, STEP_SECONDS, fetch_features
+from vigil.worker import enqueue_investigation
 
 POLL_SECONDS = STEP_SECONDS
 LOOKBACK = pd.Timedelta("3min")  # enough for the 30 s rate windows and 3 alarm points in a row
@@ -47,7 +49,10 @@ def watch(
     on_report: Callable[[dict], None] = lambda r: print(format_report(r)),
     max_alerts: int | None = None,
     memory: Memory | None = None,
+    queue: Queue | None = None,
 ) -> None:
+    """With a queue, each alert becomes a job for the workers and watching carries on at
+    once; without one, the watcher investigates each alert itself before watching again."""
     quiet_until = pd.Timestamp.now(tz="UTC")
     handled = 0
     while max_alerts is None or handled < max_alerts:
@@ -58,21 +63,33 @@ def watch(
             time.sleep(POLL_SECONDS)
             continue
         print(alert.describe(), flush=True)
-        print("Investigating ...", flush=True)
         identifier = f"live-{alert.detected_at:%Y%m%dT%H%M%SZ}"
-        evidence = LiveEvidence(client, as_of=pd.Timestamp.now(tz="UTC").floor("s"))
-        on_report(investigate(identifier, alert, evidence, memory=memory))
-        print(f"Review it with: vigil review {identifier} --confirm --approve (or --reject)")
+        as_of = pd.Timestamp.now(tz="UTC").floor("s")
+        if queue is not None:
+            job = enqueue_investigation(queue, identifier, alert, as_of, mode="live")
+            print(f"Queued investigation {identifier} as job {job}.", flush=True)
+        else:
+            print("Investigating ...", flush=True)
+            evidence = LiveEvidence(client, as_of=as_of)
+            on_report(investigate(identifier, alert, evidence, memory=memory))
+            print(f"Review it with: vigil review {identifier} --confirm --approve (or --reject)")
         handled += 1
         quiet_until = pd.Timestamp.now(tz="UTC") + COOLDOWN
 
 
 def main(max_alerts: int | None = None) -> None:
     detector = trained_detector()
-    memory = product_memory()
-    print(f"Watching {PROMETHEUS_URL} every {POLL_SECONDS} s. Press Ctrl+C to stop.", flush=True)
+    store = default_store()
+    queue = Queue(store) if isinstance(store, str) else None
+    memory = None if queue is not None else product_memory()  # workers load their own
+    target = "the job queue" if queue is not None else "this process"
+    print(
+        f"Watching {PROMETHEUS_URL} every {POLL_SECONDS} s; alerts go to {target}. "
+        "Press Ctrl+C to stop.",
+        flush=True,
+    )
     with httpx.Client(base_url=PROMETHEUS_URL, timeout=30) as client:
         try:
-            watch(client, detector, max_alerts=max_alerts, memory=memory)
+            watch(client, detector, max_alerts=max_alerts, memory=memory, queue=queue)
         except KeyboardInterrupt:
             print("Stopped watching.")
