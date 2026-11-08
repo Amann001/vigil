@@ -311,3 +311,43 @@ a different action (`--restart SERVICE`), which goes through the same guardrails
 recorded as the reviewer's choice in the audit log. The incident report said plainly what was
 done; an earlier report on a replay had invented one detail ("killed by the container
 runtime"; there are no containers), so reports are a draft for a human, not a record.
+
+## Production readiness
+
+### A worker killed in the middle of an investigation
+
+Investigations run as jobs on a Postgres queue (Neon). A worker renews its job's lease every
+20 s; when it stops, the lease runs out after 60 s and another worker reclaims the job.
+
+| Time (UTC) | |
+|---|---|
+| 08:57:13 | recorded incident 7 queued; worker A claims it (attempt 1) |
+| 08:57:38 | first round of questions done, three findings checkpointed |
+| 08:57:43 | worker A killed (its process confirmed gone); the job still shows "running" |
+| after the lease | worker B reclaims the job (attempt 2) and continues from the checkpoint |
+| +13 s | done: payments error responses, fix restart payments, both right |
+
+Worker B reported `resumed_from_checkpoint: true` and took 13 s: the three specialists of the
+first round were not run again. The queue's own guarantees are tested against a real Postgres
+in CI and on Neon: 20 jobs raced for by 4 workers were each run exactly once; a dead worker's
+job is reclaimed after its lease and the dead worker can no longer complete it; failures are
+retried with exponential backoff and given up after the last attempt.
+
+**Found on the way.** Neon's pooled endpoint (PgBouncer in transaction mode) shares server
+sessions between clients: a test's `SET search_path` leaked into later connections, which
+then could not find the pgvector type. Vigil no longer uses session settings and connects to
+Neon's direct endpoint.
+
+### What one investigation costs
+
+From the Langfuse trace of a replayed investigation (incident 5): 23 model calls, about 23,600
+tokens (20,400 in, 3,200 out), 41 s from alert to proposed fix. The tools took under 0.1 s in
+total; the time is the models. At that size Groq's free daily limit for gpt-oss-120b (200,000
+tokens) covers roughly ten investigations a day, and Gemini 3.5 Flash's (20 requests) twenty
+diagnoses, which is what the fallbacks are for.
+
+### Built and checked in CI
+
+Every push runs the tests against a throwaway Postgres with pgvector, and builds the Docker
+image (1.32 GB, no PyTorch) and checks that it runs, that the worker and API load, and that
+the API answers its health check.

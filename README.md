@@ -77,6 +77,8 @@ Full tables and error analysis are in [docs/RESULTS.md](docs/RESULTS.md).
 | Proposed fixes, 11 recorded incidents | 11/11 restart the real root cause; cited an earlier incident of the same kind 4/4 times one existed |
 | Live, alert to fix | payments latency 2.4 s back to 0.095 s after a reviewer-approved restart, 7 minutes after the fault |
 | Memory retrieval (runbook for a diagnosis) | vector search 11/11 first; hybrid with reranking 9/11 |
+| Crash recovery | a worker killed mid-investigation; another reclaimed the job and finished it from the checkpoint, correctly, in 13 s |
+| Cost of one investigation (Langfuse) | 23 model calls, ~23,600 tokens, 41 s |
 | Anomaly detection, 11 recorded incidents | 11/11 detected, no false alarms, median 17 s (robust z-score) |
 | Anomaly detection, NAB | F1 0.25-0.40 across four detectors, precision up to 3x random alarms |
 | Log template mining, LogHub (16 systems) | 0.767 average grouping accuracy, no per-system tuning |
@@ -124,6 +126,21 @@ uv run vigil review ID --confirm --approve           # right diagnosis: carry ou
 uv run vigil review ID --correct "notes" --reject    # wrong: change nothing
 uv run vigil review ID --correct "notes" --restart payments   # do this instead
 ```
+
+With a database configured, alerts become jobs on a Postgres queue and workers run them, so
+watching never waits on an investigation and a worker that crashes mid-investigation is
+replaced: its job is reclaimed and continues from the last checkpoint.
+
+```bash
+uv run vigil watch                  # alerts -> jobs
+uv run vigil worker                 # run jobs (start as many as you like)
+uv run vigil jobs                   # the queue
+uv run vigil api                    # HTTP API on 127.0.0.1:8030 (docs at /docs)
+```
+
+Reviews over the API need `VIGIL_API_TOKEN` in `.env`. With the Langfuse keys set, every
+investigation is traced: each model and tool call, with tokens and timings. A Docker image of
+the worker and API is built and tested in CI (`docker run --env-file .env vigil worker`).
 
 Each investigation pauses for human review and is checkpointed, so it can be reviewed later
 from another terminal. Nothing changes the system without approval: fixes come from a fixed
