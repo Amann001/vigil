@@ -213,6 +213,53 @@ def test_score_checks_service_and_kind_of_failure():
     assert set(EXPECTED_CATEGORY) == {"crash", "leak", "latency", "errors"}
 
 
+RESTART_PAYMENTS = {"action": "restart_service", "service": "payments", "cited_incidents": []}
+
+
+def test_simulated_reviewer_approves_only_a_fix_of_the_real_cause():
+    from vigil.agent_eval import simulated_review
+
+    report = {"diagnosis": DIAGNOSIS, "proposal": RESTART_PAYMENTS}
+    wrong = {
+        "diagnosis": DIAGNOSIS | {"root_cause_service": "orders"},
+        "proposal": RESTART_PAYMENTS | {"service": "orders"},
+    }
+
+    assert simulated_review(report, INCIDENTS[0]) == {
+        "verdict": "confirmed",
+        "notes": "",
+        "approve": True,
+    }
+    decision = simulated_review(wrong, INCIDENTS[0])
+    assert decision["verdict"] == "corrected" and not decision["approve"]
+    assert "payments (service_crash)" in decision["notes"]
+
+
+def test_citations_are_scored_against_earlier_incidents_of_the_same_kind():
+    second = dict(
+        INCIDENTS[0], id=4, start="2026-11-04T17:00:00+00:00", end="2026-11-04T17:05:00+00:00"
+    )
+    first_report = {
+        "id": "a",
+        "alert_at": "2026-11-04T16:32:25+00:00",
+        "seconds": 1,
+        "models": [],
+        "diagnosis": DIAGNOSIS,
+        "proposal": RESTART_PAYMENTS,
+    }
+    second_report = first_report | {
+        "id": "b",
+        "alert_at": "2026-11-04T17:00:20+00:00",
+        "proposal": RESTART_PAYMENTS | {"cited_incidents": ["a"]},
+    }
+
+    result = score([first_report, second_report], [INCIDENTS[0], second])
+
+    assert result["proposal_accuracy"] == 1.0
+    assert (result["cited_when_possible"], result["could_cite"]) == (1, 1)
+    assert result["citations_alike"] == result["citations"] == 1
+
+
 def test_watcher_only_raises_alerts_after_the_quiet_period():
     index = pd.date_range("2026-11-04T12:00:00Z", periods=200, freq="5s")
     features = pd.DataFrame({"latency": 0.1, "rate": 5.0}, index=index)
