@@ -380,8 +380,9 @@ interrupt a service for nothing, or the wrong one.
   service (4 unsafe proposals): with nobody asking it focused questions it settled on the
   first plausible story.
 - **Memory makes Vigil decisive, at a small risk.** Without memory, diagnoses were nearly as
-  good, but three right diagnoses ended in "escalate" instead of a restart, which is safe but
-  fixes nothing; with past incidents to cite, the same diagnoses led to the fix. Memory's one
+  good (10/12), but it escalated three times instead of restarting, twice after a right
+  diagnosis (scenarios 5 and 14): safe, but it fixes nothing. With past incidents to cite, the
+  same diagnoses led to the fix. Memory's one
   cost here: Vigil's single unsafe proposal was made with memory.
 - **These are single runs on 12 incidents.** Model answers vary from run to run, so a
   difference of one or two scenarios is a hint, not a result; the single-agent gap is the
