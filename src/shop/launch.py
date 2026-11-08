@@ -3,8 +3,9 @@
 Run it with: uv run python -m shop.launch
 Stop everything with Ctrl+C.
 
-Components that die are reported but deliberately not restarted: restarting a crashed service
-is a fix Vigil should propose and a human should approve.
+Components that die are reported but deliberately not restarted automatically: restarting a
+service is a fix Vigil proposes and a human approves, carried out through the control API
+(shop.control) that the launcher serves on port 8020.
 """
 
 import argparse
@@ -21,6 +22,7 @@ from pathlib import Path
 import httpx
 
 from shop.config import DATA_DIR, PORTS, PROJECT_ROOT
+from shop.control import CONTROL_PORT, Platform, serve, stop_one
 from shop.traffic import METRICS_PORT as TRAFFIC_PORT
 
 PROMETHEUS_PORT = 9090
@@ -144,12 +146,15 @@ def main() -> None:
         signal.signal(signal.SIGBREAK, _raise_interrupt)
 
     components = build_components(args.rate, args.cycle_minutes, traffic=not args.no_traffic)
-    if busy := [c for c in components if port_in_use(c.port)]:
-        names = ", ".join(f"{c.name} (port {c.port})" for c in busy)
-        sys.exit(f"Ports already in use: {names}. Is the shop already running?")
+    busy = [f"{c.name} (port {c.port})" for c in components if port_in_use(c.port)]
+    if port_in_use(CONTROL_PORT):
+        busy.append(f"control API (port {CONTROL_PORT})")
+    if busy:
+        sys.exit(f"Ports already in use: {', '.join(busy)}. Is the shop already running?")
     if prometheus_binary() is None:
         print("Prometheus not found in bin/: run `uv run python scripts/install_prometheus.py`")
 
+    control = None
     try:
         for component in components:
             start(component)
@@ -158,10 +163,12 @@ def main() -> None:
                 sys.exit(f"{component.name} failed to start. Details: {log}")
             print(f"  started {component.name:<11} {component.url}")
 
+        control = serve(Platform(components, start=start, stop=stop_one, ready=wait_ready))
         print("\nVigil demo system is running. Press Ctrl+C to stop.")
         print(f"  shop API docs   http://127.0.0.1:{PORTS['storefront']}/docs")
         if prometheus_binary() is not None:
             print(f"  Prometheus      http://127.0.0.1:{PROMETHEUS_PORT}")
+        print(f"  control API     http://127.0.0.1:{CONTROL_PORT}/status")
         print("  break something uv run python -m shop.chaos --help\n")
         while True:
             report_exits(components)
@@ -169,6 +176,8 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nStopping...")
     finally:
+        if control is not None:
+            control.shutdown()
         stop_all(components)
 
 
