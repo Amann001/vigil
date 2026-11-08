@@ -93,6 +93,49 @@ def test_partial_error_rate():
     assert 60 <= failures <= 120  # ~90 expected
 
 
+def test_latency_can_hit_only_a_share_of_requests():
+    app = make_app()
+    client = TestClient(app)
+    app.state.chaos.rng.seed(3)
+    client.post(CHAOS_PATH, json={"fault": "latency", "latency_seconds": 0.05, "fraction": 0.3})
+
+    slow = 0
+    for _ in range(60):
+        start = time.perf_counter()
+        client.get("/work")
+        slow += time.perf_counter() - start >= 0.035
+
+    assert 8 <= slow <= 30  # ~18 expected
+
+
+def test_cpu_fault_burns_cpu_on_each_request():
+    client = TestClient(make_app())
+    client.post(CHAOS_PATH, json={"fault": "cpu", "cpu_seconds": 0.1})
+
+    start = time.process_time()
+    client.get("/work")
+
+    assert time.process_time() - start >= 0.08  # CPU time, not just waiting
+
+
+def test_a_traffic_surge_multiplies_arrivals_until_it_ends(tmp_path):
+    from shop.traffic import Surge, clear_surge, set_surge
+
+    path = tmp_path / "traffic.json"
+    surge = Surge(path)
+    assert surge.multiplier() == 1.0
+
+    set_surge(2.5, seconds=60, path=path)
+    surge.checked_at = 0  # read the file again now rather than after a second
+    assert surge.multiplier() == 2.5
+
+    set_surge(2.5, seconds=-1, path=path)  # already over
+    surge.checked_at = 0
+    assert surge.multiplier() == 1.0
+    clear_surge(path)
+    assert not path.exists()
+
+
 def test_nothing_agents_can_see_names_the_fault(caplog):
     client = TestClient(make_app())
     formatter = JsonFormatter("testsvc")
@@ -206,10 +249,11 @@ def test_process_memory_is_exported():
 @pytest.mark.parametrize(
     ("fault", "keys"),
     [
-        ("latency", {"fault", "latency_seconds", "duration_seconds"}),
+        ("latency", {"fault", "latency_seconds", "fraction", "duration_seconds"}),
         ("errors", {"fault", "error_rate", "duration_seconds"}),
         ("leak", {"fault", "leak_mb_per_second", "leak_limit_mb", "duration_seconds"}),
         ("crash", {"fault", "duration_seconds"}),
+        ("cpu", {"fault", "cpu_seconds", "fraction", "duration_seconds"}),
     ],
 )
 def test_summary_keeps_only_relevant_settings(fault, keys):

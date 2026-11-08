@@ -15,11 +15,13 @@ Run it with: uv run python -m shop.traffic --rate 3
 import argparse
 import asyncio
 import contextlib
+import json
 import logging
 import math
 import random
 import time
 from collections import deque
+from pathlib import Path
 
 import httpx
 from prometheus_client import Counter, Gauge, start_http_server
@@ -40,6 +42,9 @@ CYCLE_AMPLITUDE = 0.5
 # Sessions beyond this many in flight are dropped, so a broken shop can't make us pile up tasks.
 MAX_IN_FLIGHT = 200
 SUMMARY_INTERVAL_SECONDS = 60
+# A temporary rush of customers (a sale, a newsletter going out): more traffic, nothing broken.
+# Set by writing {"multiplier": 2.5, "until": <unix time>} to this file; see set_surge.
+SURGE_FILE = DATA_DIR / "chaos" / "traffic.json"
 
 CUSTOMER_REQUESTS = Counter(
     "traffic_requests_total",
@@ -129,11 +134,41 @@ class Customers:
         return response
 
 
+def set_surge(multiplier: float, seconds: float, path: Path = SURGE_FILE) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"multiplier": multiplier, "until": time.time() + seconds}))
+
+
+def clear_surge(path: Path = SURGE_FILE) -> None:
+    path.unlink(missing_ok=True)
+
+
+class Surge:
+    """The current traffic multiplier, read from SURGE_FILE at most once a second."""
+
+    def __init__(self, path: Path = SURGE_FILE) -> None:
+        self.path = path
+        self.checked_at = 0.0
+        self.value = 1.0
+
+    def multiplier(self) -> float:
+        now = time.time()
+        if now - self.checked_at >= 1:
+            self.checked_at = now
+            try:
+                surge = json.loads(self.path.read_text(encoding="utf-8"))
+                self.value = float(surge["multiplier"]) if surge["until"] > now else 1.0
+            except (OSError, ValueError, KeyError):
+                self.value = 1.0
+        return self.value
+
+
 async def generate(
     customers: Customers,
     base_rate: float,
     cycle_seconds: float,
     duration_seconds: float | None = None,
+    surge: Surge | None = None,
 ) -> int:
     """Start sessions at the target rate until `duration_seconds` pass (forever if None).
 
@@ -146,6 +181,8 @@ async def generate(
 
     while True:
         rate = arrival_rate(next_arrival - start, base_rate, cycle_seconds)
+        if surge is not None:
+            rate *= surge.multiplier()
         TARGET_RATE.set(rate)
         # Arrivals are scheduled on an absolute timeline rather than by chaining sleeps:
         # Windows timers are ~15 ms coarse, and chained short sleeps drift far off the target.
@@ -180,7 +217,7 @@ async def run(
     base_url = f"http://127.0.0.1:{PORTS['storefront']}"
     async with httpx.AsyncClient(base_url=base_url, timeout=20) as client:
         customers = Customers(client, random.Random(seed))
-        await generate(customers, base_rate, cycle_seconds, duration)
+        await generate(customers, base_rate, cycle_seconds, duration, surge=Surge())
 
 
 def main() -> None:

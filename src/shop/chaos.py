@@ -11,6 +11,8 @@ Usage:
     uv run python -m shop.chaos inject inventory errors --error-rate 0.3
     uv run python -m shop.chaos inject orders leak --leak-rate 10 --leak-limit 600
     uv run python -m shop.chaos inject storefront crash
+    uv run python -m shop.chaos inject payments latency --latency 2 --fraction 0.3
+    uv run python -m shop.chaos inject orders cpu --cpu 0.05
     uv run python -m shop.chaos clear payments
     uv run python -m shop.chaos status
 """
@@ -42,12 +44,16 @@ LEDGER = DATA_DIR / "chaos" / "ledger.jsonl"
 OOM_EXIT_CODE = 137
 CRASH_EXIT_CODE = 1
 
-FaultKind = Literal["latency", "errors", "leak", "crash"]
+FaultKind = Literal["latency", "errors", "leak", "crash", "cpu"]
 
 
 class FaultRequest(BaseModel):
     fault: FaultKind
     latency_seconds: float = Field(default=1.0, ge=0, le=30)
+    # Share of requests slowed by latency or cpu; 1 means every request.
+    fraction: float = Field(default=1.0, gt=0, le=1)
+    # Busy CPU time burned per affected request, as a CPU-bound hot loop would.
+    cpu_seconds: float = Field(default=0.05, gt=0, le=2)
     error_rate: float = Field(default=0.5, gt=0, le=1)
     leak_mb_per_second: float = Field(default=10, gt=0, le=100)
     leak_limit_mb: float = Field(default=600, gt=0, le=4000)
@@ -56,10 +62,11 @@ class FaultRequest(BaseModel):
     def summary(self) -> dict:
         """Only the settings that apply to this kind of fault, for the ground-truth ledger."""
         relevant = {
-            "latency": ["latency_seconds"],
+            "latency": ["latency_seconds", "fraction"],
             "errors": ["error_rate"],
             "leak": ["leak_mb_per_second", "leak_limit_mb"],
             "crash": [],
+            "cpu": ["cpu_seconds", "fraction"],
         }[self.fault]
         settings = {key: getattr(self, key) for key in relevant}
         return {"fault": self.fault, **settings, "duration_seconds": self.duration_seconds}
@@ -107,8 +114,15 @@ def install(app: FastAPI, name: str) -> ChaosState:
         if fault is None or request.url.path.startswith((CHAOS_PATH, "/health", "/metrics")):
             return await call_next(request)
 
-        if fault.fault == "latency":
+        affected = state.rng.random() < fault.fraction
+        if fault.fault == "latency" and affected:
             await asyncio.sleep(fault.latency_seconds * state.rng.uniform(0.8, 1.2))
+        elif fault.fault == "cpu" and affected:
+            # Burn CPU on the event loop itself, as CPU-heavy code in a request handler does:
+            # every request queued behind it waits too.
+            deadline = time.perf_counter() + fault.cpu_seconds
+            while time.perf_counter() < deadline:
+                pass
         elif fault.fault == "errors" and state.rng.random() < fault.error_rate:
             # What a service whose connection pool has run dry would log.
             log.error(
@@ -207,11 +221,13 @@ def main() -> None:
 
     inject = commands.add_parser("inject", help="start a fault in one service")
     inject.add_argument("service", choices=list(PORTS))
-    inject.add_argument("fault", choices=["latency", "errors", "leak", "crash"])
+    inject.add_argument("fault", choices=["latency", "errors", "leak", "crash", "cpu"])
     inject.add_argument("--latency", type=float, default=1.0, help="seconds added per request")
     inject.add_argument("--error-rate", type=float, default=0.5, help="share of requests failing")
     inject.add_argument("--leak-rate", type=float, default=10, help="MB leaked per second")
     inject.add_argument("--leak-limit", type=float, default=600, help="MB at which it is killed")
+    inject.add_argument("--fraction", type=float, default=1.0, help="share of requests slowed")
+    inject.add_argument("--cpu", type=float, default=0.05, help="CPU seconds burned per request")
     inject.add_argument("--duration", type=float, help="seconds until it clears itself")
 
     clear = commands.add_parser("clear", help="stop the fault in one service")
@@ -223,6 +239,8 @@ def main() -> None:
         fault = FaultRequest(
             fault=args.fault,
             latency_seconds=args.latency,
+            fraction=args.fraction,
+            cpu_seconds=args.cpu,
             error_rate=args.error_rate,
             leak_mb_per_second=args.leak_rate,
             leak_limit_mb=args.leak_limit,
