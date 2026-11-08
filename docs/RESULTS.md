@@ -321,7 +321,7 @@ Investigations run as jobs on a Postgres queue (Neon). A worker renews its job's
 
 | Time (UTC) | |
 |---|---|
-| 08:57:13 | recorded incident 7 queued; worker A claims it (attempt 1) |
+| 08:57 | recorded incident 7 queued; worker A claims it (attempt 1) |
 | 08:57:38 | first round of questions done, three findings checkpointed |
 | 08:57:43 | worker A killed (its process confirmed gone); the job still shows "running" |
 | after the lease | worker B reclaims the job (attempt 2) and continues from the checkpoint |
