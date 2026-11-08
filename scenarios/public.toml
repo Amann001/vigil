@@ -1,0 +1,208 @@
+# Vigil's public evaluation scenarios (14). The format is described in docs/SCENARIOS.md.
+#
+# These were written while building Vigil, so they are a development set. Six more scenarios
+# were written by someone else and are kept outside this repository until the final run.
+#
+# Each scenario starts on a healthy shop; times are seconds after the scenario starts.
+
+[[scenario]]
+name = "payments crashes"
+description = "The payments process dies. Checkouts fail; browsing still works."
+[scenario.expected]
+root_cause_service = "payments"
+category = "service_crash"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "payments"
+fault = "crash"
+
+[[scenario]]
+name = "inventory becomes slow"
+description = "Every inventory request takes about a second longer."
+[scenario.expected]
+root_cause_service = "inventory"
+category = "slow_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "inventory"
+fault = "latency"
+latency_seconds = 1.0
+duration_seconds = 240
+
+[[scenario]]
+name = "orders fails a fifth of requests"
+description = "A light error rate: easy to miss among normal card declines."
+[scenario.expected]
+root_cause_service = "orders"
+category = "error_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "orders"
+fault = "errors"
+error_rate = 0.2
+duration_seconds = 240
+
+[[scenario]]
+name = "storefront leaks memory slowly"
+description = "Memory grows by 2 MB/s for minutes before the process is killed."
+observe_seconds = 400
+[scenario.expected]
+root_cause_service = "storefront"
+category = "memory_leak"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "storefront"
+fault = "leak"
+leak_mb_per_second = 2
+leak_limit_mb = 500
+
+[[scenario]]
+name = "payments slow for some requests"
+description = "Only 30% of payment requests are slowed, by 2 s: the median barely moves."
+[scenario.expected]
+root_cause_service = "payments"
+category = "slow_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "payments"
+fault = "latency"
+latency_seconds = 2.0
+fraction = 0.3
+duration_seconds = 240
+
+[[scenario]]
+name = "inventory errors come and go"
+description = "Three one-minute bursts of errors, a minute apart."
+observe_seconds = 400
+[scenario.expected]
+root_cause_service = "inventory"
+category = "error_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "inventory"
+fault = "errors"
+error_rate = 0.5
+duration_seconds = 60
+[[scenario.steps]]
+at = 150
+service = "inventory"
+fault = "errors"
+error_rate = 0.5
+duration_seconds = 60
+[[scenario.steps]]
+at = 270
+service = "inventory"
+fault = "errors"
+error_rate = 0.5
+duration_seconds = 60
+
+[[scenario]]
+name = "orders saturates its CPU"
+description = "Each orders request burns 80 ms of CPU, so requests queue behind each other."
+[scenario.expected]
+root_cause_service = "orders"
+category = "slow_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "orders"
+fault = "cpu"
+cpu_seconds = 0.08
+duration_seconds = 240
+
+[[scenario]]
+name = "a sale brings more customers"
+description = "Traffic rises to 2.5 times normal for four minutes. Nothing is broken."
+[scenario.expected]
+root_cause_service = "none"
+category = "not_an_incident"
+fix = "no_action"
+[[scenario.steps]]
+at = 30
+fault = "traffic"
+multiplier = 2.5
+duration_seconds = 240
+
+[[scenario]]
+name = "a quiet period"
+description = "Nothing happens. Any alert is a false alarm."
+observe_seconds = 300
+[scenario.expected]
+root_cause_service = "none"
+category = "not_an_incident"
+fix = "no_action"
+
+[[scenario]]
+name = "inventory crashes"
+description = "inventory dies; storefront and orders, which both call it, start failing."
+[scenario.expected]
+root_cause_service = "inventory"
+category = "service_crash"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "inventory"
+fault = "crash"
+
+[[scenario]]
+name = "orders leaks memory fast"
+description = "15 MB/s: the process is killed about half a minute after the leak starts."
+[scenario.expected]
+root_cause_service = "orders"
+category = "memory_leak"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "orders"
+fault = "leak"
+leak_mb_per_second = 15
+leak_limit_mb = 500
+
+[[scenario]]
+name = "payments fails most requests"
+description = "80% of payment requests fail."
+[scenario.expected]
+root_cause_service = "payments"
+category = "error_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "payments"
+fault = "errors"
+error_rate = 0.8
+duration_seconds = 240
+
+[[scenario]]
+name = "storefront slightly slow"
+description = "A mild 0.4 s slowdown on the service customers talk to."
+[scenario.expected]
+root_cause_service = "storefront"
+category = "slow_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "storefront"
+fault = "latency"
+latency_seconds = 0.4
+duration_seconds = 240
+
+[[scenario]]
+name = "inventory slow for a fifth of requests"
+description = "20% of inventory requests take 1.5 s longer."
+[scenario.expected]
+root_cause_service = "inventory"
+category = "slow_responses"
+fix = "restart_service"
+[[scenario.steps]]
+at = 30
+service = "inventory"
+fault = "latency"
+latency_seconds = 1.5
+fraction = 0.2
+duration_seconds = 240

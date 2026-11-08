@@ -47,18 +47,18 @@ def _is_postgres(store: Store) -> bool:
 
 
 @contextmanager
-def open_graph(store: Store | None = None) -> Iterator:
+def open_graph(store: Store | None = None, mode: str = "multi") -> Iterator:
     store = default_store() if store is None else store
     if _is_postgres(store):
         with PostgresSaver.from_conn_string(direct(store)) as saver:
             saver.setup()  # creates the checkpoint tables on first use; a no-op afterwards
-            yield build_graph(saver)
+            yield build_graph(saver, mode)
         return
     path = Path(store)
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(path, check_same_thread=False)
     try:
-        yield build_graph(SqliteSaver(connection))
+        yield build_graph(SqliteSaver(connection), mode)
     finally:
         connection.close()
 
@@ -90,6 +90,8 @@ def investigate(
     memory: Memory | None = None,
     store: Store | None = None,
     reports_dir: Path = REPORTS_DIR,
+    mode: str = "multi",
+    callbacks: list | None = None,
 ) -> dict:
     """Investigate an alert until the diagnosis and the proposed fix await human review.
 
@@ -100,7 +102,9 @@ def investigate(
     config = _config(investigation_id)
     context = Context(evidence, memory=memory)
     traced = tracing.run_config(investigation_id, "investigation")
-    with open_graph(store) as graph:
+    if callbacks:  # e.g. token counting in the evaluation
+        traced = traced | {"callbacks": traced.get("callbacks", []) + callbacks}
+    with open_graph(store, mode) as graph:
         pending = graph.get_state(config).next
         resumed = bool(pending) and pending != ("review",)
         if resumed:

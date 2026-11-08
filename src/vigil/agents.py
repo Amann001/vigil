@@ -59,6 +59,7 @@ AgentName = Literal["metrics", "logs", "deploy"]
 class Specialist:
     role: str
     tools: tuple
+    turns: int = MAX_TOOL_CALLS
 
 
 SPECIALISTS: dict[str, Specialist] = {
@@ -76,6 +77,20 @@ SPECIALISTS: dict[str, Specialist] = {
         "You track changes to the running system: restarts, downtime and availability of each "
         "service, and how resources such as memory behaved before a service went down.",
         (tools.availability, tools.metric_history),
+    ),
+    # The single-agent ablation: one agent with every tool investigates alone, no supervisor.
+    "solo": Specialist(
+        "You are investigating alone, with every tool: metrics, logs, availability and restarts. "
+        "Find the root cause.",
+        (
+            tools.service_overview,
+            tools.dependency_overview,
+            tools.metric_history,
+            tools.availability,
+            tools.log_summary,
+            tools.search_logs,
+        ),
+        turns=3 * MAX_TOOL_CALLS,
     ),
 }
 
@@ -282,7 +297,7 @@ def run_specialist(name: str, question: str, alert: str, evidence: Evidence) -> 
         HumanMessage(f"{alert}\n\nSupervisor's question: {question}"),
     ]
     calls, used = [], set()
-    for _ in range(MAX_TOOL_CALLS):
+    for _ in range(specialist.turns):
         reply, model_name = first_answer(with_tools, messages)
         used.add(model_name)
         messages.append(reply)
@@ -484,14 +499,35 @@ def remember(state: Investigation, runtime: Runtime[Context]) -> dict:
     return {}
 
 
-def build_graph(checkpointer=None):
+def solo(state: Investigation, runtime: Runtime[Context]) -> dict:
+    """The single-agent ablation: one agent with every tool, in place of the team."""
+    finding = run_specialist(
+        "solo", "Find the root cause of this alert.", state["alert"], runtime.context.evidence
+    )
+    return {
+        "findings": [finding],
+        "models": [f"solo: {model}" for model in finding["models"]],
+    }
+
+
+Mode = Literal["multi", "single"]
+
+
+def build_graph(checkpointer=None, mode: Mode = "multi"):
+    """mode="multi" is Vigil: a supervisor and specialists. mode="single" replaces them with
+    one agent holding every tool, for comparison; everything after the diagnosis is the same."""
     graph = StateGraph(Investigation, context_schema=Context)
-    steps = [plan, specialist, diagnose, recall, propose, review, act, report, remember]
-    for step in steps:
+    tail = [diagnose, recall, propose, review, act, report, remember]
+    head = [plan, specialist] if mode == "multi" else [solo]
+    for step in head + tail:
         graph.add_node(step.__name__, step)
-    graph.add_edge(START, "plan")
-    graph.add_conditional_edges("plan", route, ["specialist", "diagnose"])
-    graph.add_edge("specialist", "plan")
+    if mode == "multi":
+        graph.add_edge(START, "plan")
+        graph.add_conditional_edges("plan", route, ["specialist", "diagnose"])
+        graph.add_edge("specialist", "plan")
+    else:
+        graph.add_edge(START, "solo")
+        graph.add_edge("solo", "diagnose")
     for before, after in [
         ("diagnose", "recall"),
         ("recall", "propose"),

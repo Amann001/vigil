@@ -369,3 +369,23 @@ def test_investigation_stops_asking_after_max_rounds(monkeypatch, one_tool):
     assert len(state["findings"]) == MAX_ROUNDS
     assert state["round"] == MAX_ROUNDS + 1
     assert "diagnosis" in state
+
+
+def test_single_agent_mode_investigates_alone_with_every_tool(monkeypatch):
+    solo_model = FakeModel([AIMessage("payments is down")])
+    use_models(
+        monkeypatch,
+        solo=[solo_model],
+        diagnosis=[FakeModel(structured={Diagnosis: [DIAGNOSIS]})],
+        remediation=[FakeModel(structured={ProposalAnswer: [proposal()]})],
+    )
+    graph = build_graph(InMemorySaver(), mode="single")
+
+    state = graph.invoke(
+        START_STATE, {"configurable": {"thread_id": "t"}}, context=Context(evidence="x")
+    )
+
+    assert [f["agent"] for f in state["findings"]] == ["solo"]
+    assert len(agents.SPECIALISTS["solo"].tools) == 6
+    assert state["models"][0] == "solo: fake/0" and "diagnosis" in state
+    assert "plan" not in " ".join(state["models"])  # no supervisor

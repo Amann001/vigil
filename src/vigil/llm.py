@@ -40,6 +40,7 @@ ROLES = {
     "deploy": [GEMINI_LITE, GROQ_SMALL],
     "remediation": [GROQ_LARGE, GEMINI_LITE],
     "comms": [GROQ_SMALL, GEMINI_LITE],
+    "solo": [GROQ_LARGE, GEMINI_LITE],  # only in the single-agent ablation
 }
 TIMEOUT_SECONDS = 90
 # Rate-limit errors say how long to wait; retrying a few times rides out a busy minute before

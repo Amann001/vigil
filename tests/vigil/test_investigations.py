@@ -32,7 +32,7 @@ class State(TypedDict, total=False):
     review: dict
 
 
-def stand_in_graph(checkpointer=None):
+def stand_in_graph(checkpointer=None, mode="multi"):
     """The real graph's shape without models: diagnose, then pause for review."""
     graph = StateGraph(State)
     graph.add_node("diagnose", lambda s: {"diagnosis": DIAGNOSIS, "models": ["diagnosis: fake"]})
@@ -97,7 +97,7 @@ class Flaky:
             raise RuntimeError("laptop lid closed")
         return {"diagnosis": DIAGNOSIS, "models": ["diagnosis: fake"]}
 
-    def build(self, checkpointer=None):
+    def build(self, checkpointer=None, mode="multi"):
         graph = StateGraph(State)
         graph.add_node("gather", self.gather)
         graph.add_node("diagnose", self.diagnose)

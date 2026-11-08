@@ -95,7 +95,7 @@ def test_checkpoints_in_postgres_survive_a_new_connection(monkeypatch, tmp_path)
         models: list
         review: dict
 
-    def graph_without_models(checkpointer=None):
+    def graph_without_models(checkpointer=None, mode="multi"):
         graph = StateGraph(State)
         graph.add_node("diagnose", lambda s: {"diagnosis": {"root_cause_service": "payments"}})
         graph.add_node("review", lambda s: {"review": interrupt(s["diagnosis"])})
