@@ -307,6 +307,47 @@ def test_a_rejected_proposal_changes_nothing(monkeypatch, one_tool, tmp_path, me
     assert finished["action"]["reasons"] == ["it was orders"]
 
 
+def test_the_reviewer_can_choose_a_different_action(monkeypatch, one_tool, tmp_path, memory):
+    """When the diagnosis is right but the proposal is not, the reviewer picks the fix; it still
+    goes through the guardrails and is recorded as the reviewer's choice."""
+    scripted_investigation(monkeypatch, one_tool)
+    escalate = proposal(action="escalate", service=None, cited_incidents=[])
+    use_models(
+        monkeypatch,
+        planner=[FakeModel(structured={Plan: [Plan(reasoning="clear", tasks=[])]})],
+        diagnosis=[FakeModel(structured={Diagnosis: [DIAGNOSIS]})],
+        remediation=[FakeModel(structured={ProposalAnswer: [escalate]})],
+        comms=[FakeModel([AIMessage("report"), AIMessage("report")])],
+    )
+    executor, audit = RecordingExecutor(), AuditLog(tmp_path / "audit.jsonl")
+    decision = {
+        "verdict": "corrected",
+        "notes": "payments itself is slow",
+        "approve": False,
+        "by": "aman",
+        "instead": {"action": "restart_service", "service": "payments"},
+    }
+
+    outcomes = []
+    for incident in ("incident-1", "incident-2"):
+        graph = build_graph(InMemorySaver())
+        config = {"configurable": {"thread_id": incident}}
+        graph.invoke(START_STATE | {"id": incident}, config, context=Context("x", memory))
+        use_models(
+            monkeypatch,
+            planner=[FakeModel(structured={Plan: [Plan(reasoning="clear", tasks=[])]})],
+            diagnosis=[FakeModel(structured={Diagnosis: [DIAGNOSIS]})],
+            remediation=[FakeModel(structured={ProposalAnswer: [escalate]})],
+            comms=[FakeModel([AIMessage("report")])],
+        )
+        context = Context(None, memory, executor, audit)
+        outcomes.append(graph.invoke(Command(resume=decision), config, context=context)["action"])
+
+    assert outcomes[0]["outcome"] == "executed" and outcomes[0]["chosen_by_reviewer"]
+    assert outcomes[1]["outcome"] == "refused"  # the restart limit applies to reviewers too
+    assert executor.calls == ["payments"]
+
+
 def test_investigation_stops_asking_after_max_rounds(monkeypatch, one_tool):
     keep_asking = Plan(reasoning="more", tasks=[Task(agent="metrics", question="again?")])
     replies = []

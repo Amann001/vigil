@@ -74,6 +74,9 @@ Full tables and error analysis are in [docs/RESULTS.md](docs/RESULTS.md).
 |---|---|
 | Root-cause diagnosis, 11 recorded incidents (replayed) | 11/11 correct service and kind of failure, median 94 s |
 | Root-cause diagnosis, 2 live incidents never seen in development | 2/2 correct; alert 25-75 s after the fault, diagnosis 49-102 s later |
+| Proposed fixes, 11 recorded incidents | 11/11 restart the real root cause; cited an earlier incident of the same kind 4/4 times one existed |
+| Live, alert to fix | payments latency 2.4 s back to 0.095 s after a reviewer-approved restart, 7 minutes after the fault |
+| Memory retrieval (runbook for a diagnosis) | vector search 11/11 first; hybrid with reranking 9/11 |
 | Anomaly detection, 11 recorded incidents | 11/11 detected, no false alarms, median 17 s (robust z-score) |
 | Anomaly detection, NAB | F1 0.25-0.40 across four detectors, precision up to 3x random alarms |
 | Log template mining, LogHub (16 systems) | 0.767 average grouping accuracy, no per-system tuning |
@@ -116,11 +119,18 @@ The agents need free API keys for Gemini and Groq: copy `.env.example` to `.env`
 uv run vigil watch                  # watch the live shop; investigate each alert
 uv run vigil replay 3               # investigate alert 3 of the latest recorded campaign
 uv run vigil list                   # every investigation and its status
-uv run vigil review ID --confirm    # accept a diagnosis (or --correct "what really happened")
+uv run vigil show ID                # the diagnosis and the proposed fix
+uv run vigil review ID --confirm --approve           # right diagnosis: carry out the fix
+uv run vigil review ID --correct "notes" --reject    # wrong: change nothing
+uv run vigil review ID --correct "notes" --restart payments   # do this instead
 ```
 
 Each investigation pauses for human review and is checkpointed, so it can be reviewed later
-from another terminal.
+from another terminal. Nothing changes the system without approval: fixes come from a fixed
+catalogue, a service is restarted at most once every 15 minutes, and every decision is written
+to `data/actions/audit.jsonl`. Reviewed incidents are remembered, with the reviewer's
+corrections, and recalled by later investigations. Memory and checkpoints use Postgres with
+pgvector when `DATABASE_URL` is set (a free Neon database), and local files otherwise.
 
 ## The demo system
 

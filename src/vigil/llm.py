@@ -25,7 +25,8 @@ GEMINI = ("gemini", "gemini-3.5-flash")
 # Free-tier budgets decide the allocation (limits are per model, and reset daily or per minute):
 # - Gemini 3.5 Flash, the strongest, allows only 20 requests a day, so it writes the diagnosis:
 #   one call per investigation.
-# - Groq allows 1,000 requests a day and 8,000 tokens a minute per model; Gemini Flash-Lite is
+# - Groq allows 1,000 requests and 200,000 tokens a day, and 8,000 tokens a minute, per model;
+#   about ten investigations exhaust gpt-oss-120b for the day. Gemini Flash-Lite is
 #   the third budget. Specialists run in parallel, so each gets a different primary model.
 # Qwen 3.8 was tried for logs and dropped: it called a tool that does not exist in 1 of 3 tries.
 GEMINI_LITE = ("gemini", "gemini-3.1-flash-lite")
@@ -33,7 +34,7 @@ GROQ_LARGE = ("groq", "openai/gpt-oss-120b")
 GROQ_SMALL = ("groq", "openai/gpt-oss-20b")
 ROLES = {
     "planner": [GROQ_LARGE, GEMINI_LITE],
-    "diagnosis": [GEMINI, GROQ_LARGE],
+    "diagnosis": [GEMINI, GROQ_LARGE, GEMINI_LITE],
     "metrics": [GROQ_LARGE, GEMINI_LITE],
     "logs": [GROQ_SMALL, GEMINI_LITE],
     "deploy": [GEMINI_LITE, GROQ_SMALL],

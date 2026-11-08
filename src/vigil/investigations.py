@@ -136,6 +136,7 @@ def review(
     notes: str = "",
     approve: bool = False,
     by: str = "reviewer",
+    instead: dict | None = None,
     memory: Memory | None = None,
     executor: Executor | None = None,
     store: Store | None = None,
@@ -152,6 +153,7 @@ def review(
         "verdict": verdict,
         "notes": notes,
         "approve": approve,
+        "instead": instead,
         "by": by,
         "at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
     }

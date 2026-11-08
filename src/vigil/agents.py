@@ -424,13 +424,19 @@ def review(state: Investigation) -> dict:
 
 
 def act(state: Investigation, runtime: Runtime[Context]) -> dict:
-    """Carry out the proposal if the human approved it and the guardrails allow it."""
+    """Carry out the proposal if the human approved it and the guardrails allow it.
+
+    The reviewer may instead choose a different action ("instead"), for example when the
+    diagnosis was right but the proposal was not: it goes through the same guardrails and is
+    recorded as chosen by the reviewer."""
     decision = state["review"]
     fields = {k: v for k, v in state["proposal"].items() if k in Proposal.model_fields}
+    if instead := decision.get("instead"):
+        fields |= instead | {"rationale": f"Chosen by the reviewer: {decision.get('notes', '')}"}
     entry = carry_out(
         Proposal(**fields),
         {
-            "approved": decision.get("approve", False),
+            "approved": decision.get("approve", False) or bool(instead),
             "by": decision.get("by"),
             "notes": decision.get("notes"),
         },
@@ -438,7 +444,7 @@ def act(state: Investigation, runtime: Runtime[Context]) -> dict:
         runtime.context.audit or AuditLog(),
         incident=state["id"],
     )
-    return {"action": entry}
+    return {"action": entry | {"chosen_by_reviewer": bool(instead)}}
 
 
 REPORT_PROMPT = """\

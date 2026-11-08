@@ -235,3 +235,79 @@ the agents work on them. Each incident is one clean fault, and the agents are to
 architecture and the four kinds of failure, which maps one-to-one onto the faults injected. The
 real test is the set of hidden scenarios written by someone else (Milestone 6), which will
 include faults that fit none of these categories.
+
+## Memory and action
+
+### Retrieval: which way of searching memory works
+
+`uv run python -m vigil.memory_eval` · 6 runbooks; 22 queries, the alert and the diagnosis
+summary of each of the 11 recorded incidents; the relevant runbook comes from the injected
+fault (crash: service-down, leak: memory-leak, latency: high-latency, errors: error-spike).
+
+| Search | Query | Recall@1 | Recall@3 | MRR |
+|---|---|---|---|---|
+| Keyword (Postgres full-text) | alert | 0.55 | 0.82 | 0.72 |
+| Keyword (Postgres full-text) | diagnosis | 0.55 | 0.91 | 0.73 |
+| **Vector (pgvector, bge-small)** | alert | 0.00 | 0.82 | 0.38 |
+| **Vector (pgvector, bge-small)** | **diagnosis** | **1.00** | **1.00** | **1.00** |
+| Hybrid (reciprocal rank fusion) | alert | 0.45 | 0.82 | 0.64 |
+| Hybrid (reciprocal rank fusion) | diagnosis | 0.73 | 1.00 | 0.86 |
+| Hybrid + cross-encoder rerank | alert | 0.00 | 0.27 | 0.28 |
+| Hybrid + cross-encoder rerank | diagnosis | 0.82 | 1.00 | 0.88 |
+
+**What this shows**
+
+- The query matters more than the method. An alert is a list of metric names and "usual
+  values"; every method matched those words to the normal-variation runbook (vector search put
+  it first 11 times out of 11), which would tell the agents that nothing is wrong. Vigil
+  therefore searches memory *after* diagnosing, with the diagnosis.
+- With the diagnosis as the query, plain vector search was perfect, and the more elaborate
+  pipelines were worse: fusion mixes in keyword rankings that are weaker here, and the
+  reranker (trained on web search questions) is out of its domain. Vector search is the
+  default; the others remain as the measured comparison. With 6 runbooks this is a small test,
+  and the result may change as memory grows.
+
+### Replays with memory and proposed fixes
+
+`uv run python -m vigil.agent_eval --rerun` · the whole graph on the 11 recorded incidents, in
+order, with a memory of its own that starts with the runbooks only. A simulated reviewer that
+knows the injected fault reviews each investigation after it finishes: it confirms or corrects
+the diagnosis and approves a fix only if it restarts the real root-cause service (the fix in
+every runbook for these faults). Approved fixes are dry runs.
+
+| | Result |
+|---|---|
+| Diagnosis (service and kind of failure) | 11/11 |
+| Proposed fix (restart the root-cause service, nothing else) | 11/11 |
+| Cited an earlier incident of exactly the same kind, when one existed | 4/4 |
+| Citations of exactly the same kind (same service and fault) | 5/10 |
+| Median time per investigation | 52 s |
+
+The other five citations were incidents with the same kind of failure in a different service
+(incident 6, orders latency, cited incident 4, inventory latency), which is related but not
+an exact match. The last investigation hit both daily free-tier limits at once (Gemini 3.5
+Flash: 20 requests; Groq gpt-oss-120b: 200,000 tokens); after a third fallback model was added
+it continued from its checkpoint and was still right, on Gemini Flash-Lite throughout.
+
+### Live: from alert to fix
+
+The shop running, `vigil watch` watching, and 1.2 s of latency added to payments with no end
+time, so only a fix could end it. Both main models had used their daily quota, so every step
+ran on the fallback models.
+
+| Time (UTC) | |
+|---|---|
+| 07:52:01 | latency injected into payments |
+| 07:52:15 | alert: payments latency 2.3 s against a usual 0.1 s |
+| 07:56:45 | diagnosis: payments, slow responses ✓; proposal: **escalate** |
+| 07:58:44 | the reviewer corrected the diagnosis and restarted payments instead |
+| 07:59:23 | payments p95 latency 0.095 s (usual 0.096 s); orders recovered without being touched |
+
+The fallback model got the root cause right but invented an "external payment gateway" to
+explain it, which this shop does not have, and the remediation agent then reasoned, following
+the high-latency runbook, that restarting payments could not fix someone else's slowness and
+escalated. This is why a human reviews every proposal: the review now lets the reviewer pick
+a different action (`--restart SERVICE`), which goes through the same guardrails and is
+recorded as the reviewer's choice in the audit log. The incident report said plainly what was
+done; an earlier report on a replay had invented one detail ("killed by the container
+runtime"; there are no containers), so reports are a draft for a human, not a record.

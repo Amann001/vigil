@@ -8,6 +8,8 @@ vigil review ID --confirm --approve
                                 the diagnosis is right; carry out the proposed fix
 vigil review ID --correct "what really happened" --reject
                                 the diagnosis is wrong; change nothing
+vigil review ID --correct "..." --restart SERVICE
+                                do this instead of the proposal (same guardrails)
 
 Approving a fix on a live incident restarts the service through the shop's control API; on a
 replayed incident it is a dry run. Either way the decision goes to data/actions/audit.jsonl.
@@ -51,6 +53,7 @@ def _review(args) -> dict:
         "confirmed" if args.confirm else "corrected",
         args.correct or "",
         approve=args.approve,
+        instead={"action": "restart_service", "service": args.restart} if args.restart else None,
         by=args.by,
         memory=product_memory(),
         executor=ControlApiExecutor() if live else DryRunExecutor(),
@@ -81,6 +84,12 @@ def main(argv: list[str] | None = None) -> None:
     fix = verdict.add_mutually_exclusive_group(required=True)
     fix.add_argument("--approve", action="store_true", help="carry out the proposed fix")
     fix.add_argument("--reject", action="store_true", help="change nothing")
+    fix.add_argument(
+        "--restart",
+        metavar="SERVICE",
+        choices=["storefront", "orders", "payments", "inventory"],
+        help="reject the proposal and restart this service instead",
+    )
     verdict.add_argument("--by", default=getpass.getuser(), help="who is approving")
     args = parser.parse_args(argv)
 
