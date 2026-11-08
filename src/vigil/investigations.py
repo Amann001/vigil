@@ -22,6 +22,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from shop.config import DATA_DIR, PROJECT_ROOT
+from vigil import tracing
 from vigil.actions import AuditLog, Executor
 from vigil.agents import Context, build_graph
 from vigil.alerts import Alert
@@ -98,13 +99,14 @@ def investigate(
     started = time.monotonic()
     config = _config(investigation_id)
     context = Context(evidence, memory=memory)
+    traced = tracing.run_config(investigation_id, "investigation")
     with open_graph(store) as graph:
         pending = graph.get_state(config).next
         resumed = bool(pending) and pending != ("review",)
         if resumed:
             # Passing new input would restart the graph and skip the interrupted steps (an
             # interrupted run lost its second round of questions this way); None continues them.
-            state = graph.invoke(None, config, context=context)
+            state = graph.invoke(None, config | traced, context=context)
         else:
             graph.checkpointer.delete_thread(investigation_id)  # no-op for a new investigation
             start = {
@@ -112,7 +114,8 @@ def investigate(
                 "alert": alert.describe(),
                 "alert_at": alert.detected_at.isoformat(),
             }
-            state = graph.invoke(start, config, context=context)
+            state = graph.invoke(start, config | traced, context=context)
+    tracing.flush()
     report = {
         "id": investigation_id,
         "status": "awaiting review",
@@ -162,7 +165,10 @@ def review(
     with open_graph(store) as graph:
         if graph.get_state(_config(investigation_id)).next != ("review",):
             raise ValueError(f"Investigation {investigation_id!r} is not awaiting review")
-        state = graph.invoke(Command(resume=decision), _config(investigation_id), context=context)
+        traced = tracing.run_config(investigation_id, "review")
+        config = _config(investigation_id) | traced
+        state = graph.invoke(Command(resume=decision), config, context=context)
+    tracing.flush()
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report |= {
         "status": verdict,

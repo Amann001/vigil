@@ -1,6 +1,6 @@
 import pytest
 
-from vigil import investigations
+from vigil import investigations, tracing
 
 _REAL_DEFAULT_STORE = investigations.default_store
 
@@ -19,3 +19,9 @@ def no_real_checkpoint_store(monkeypatch):
         raise AssertionError("a test reached the real checkpoint store; pass store= explicitly")
 
     monkeypatch.setattr(investigations, "default_store", refuse)
+
+
+@pytest.fixture(autouse=True)
+def no_tracing(monkeypatch):
+    """Tests never send traces to the owner's Langfuse account."""
+    monkeypatch.setattr(tracing, "enabled", lambda: False)
