@@ -53,7 +53,7 @@ def store(monkeypatch, tmp_path):
 
 def run(store, identifier="replay-x-03"):
     return investigations.investigate(
-        identifier, ALERT, evidence=None, db_path=store / "vigil.db", reports_dir=store / "reports"
+        identifier, ALERT, evidence=None, store=store / "vigil.db", reports_dir=store / "reports"
     )
 
 
@@ -134,6 +134,19 @@ def test_investigating_again_starts_from_scratch(store, monkeypatch):
     assert report["resumed_from_checkpoint"] is False
     assert report["findings"] == ["payments down"]
     assert flaky.gathered == 2
+
+
+def test_checkpoints_go_to_postgres_when_configured_and_sqlite_otherwise(
+    monkeypatch, tmp_path, real_default_store
+):
+    monkeypatch.setattr(investigations, "PROJECT_ROOT", tmp_path)  # no .env here
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    assert real_default_store() == investigations.DB_PATH
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user@example.neon.tech/vigil")
+    assert real_default_store() == "postgresql://user@example.neon.tech/vigil"
+    assert investigations._is_postgres(real_default_store())
+    assert not investigations._is_postgres(investigations.DB_PATH)
 
 
 def test_review_of_an_unknown_investigation_fails(store):

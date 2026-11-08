@@ -1,11 +1,13 @@
 """Run investigations, keep them, and record a human's review.
 
-Checkpoints live in a SQLite database (data/vigil.db), so an investigation paused for review
-can be resumed from any later process. A readable JSON report of each investigation is also
-written to data/investigations/<id>.json.
+Every step of an investigation is checkpointed, so one paused for review (or interrupted) can be
+resumed from any later process. Checkpoints go to Postgres when DATABASE_URL is set in .env (the
+Neon free tier), and otherwise to a local SQLite file, data/vigil.db. A readable JSON report of
+each investigation is also written to data/investigations/<id>.json.
 """
 
 import json
+import os
 import sqlite3
 import time
 from collections.abc import Iterator
@@ -14,10 +16,12 @@ from pathlib import Path
 from typing import Literal
 
 import pandas as pd
+from dotenv import load_dotenv
+from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
-from shop.config import DATA_DIR
+from shop.config import DATA_DIR, PROJECT_ROOT
 from vigil.agents import Context, build_graph
 from vigil.alerts import Alert
 from vigil.evidence import Evidence
@@ -25,12 +29,30 @@ from vigil.evidence import Evidence
 DB_PATH = DATA_DIR / "vigil.db"
 REPORTS_DIR = DATA_DIR / "investigations"
 Verdict = Literal["confirmed", "corrected"]
+# Where checkpoints are kept: a Postgres connection URL, or the path of a SQLite file.
+Store = str | Path
+
+
+def default_store() -> Store:
+    load_dotenv(PROJECT_ROOT / ".env")
+    return os.environ.get("DATABASE_URL") or DB_PATH
+
+
+def _is_postgres(store: Store) -> bool:
+    return isinstance(store, str) and store.startswith(("postgres://", "postgresql://"))
 
 
 @contextmanager
-def open_graph(db_path: Path = DB_PATH) -> Iterator:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path, check_same_thread=False)
+def open_graph(store: Store | None = None) -> Iterator:
+    store = default_store() if store is None else store
+    if _is_postgres(store):
+        with PostgresSaver.from_conn_string(store) as saver:
+            saver.setup()  # creates the checkpoint tables on first use; a no-op afterwards
+            yield build_graph(saver)
+        return
+    path = Path(store)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, check_same_thread=False)
     try:
         yield build_graph(SqliteSaver(connection))
     finally:
@@ -51,7 +73,7 @@ def investigate(
     investigation_id: str,
     alert: Alert,
     evidence: Evidence,
-    db_path: Path = DB_PATH,
+    store: Store | None = None,
     reports_dir: Path = REPORTS_DIR,
 ) -> dict:
     """Investigate an alert until the diagnosis is ready for human review.
@@ -61,7 +83,7 @@ def investigate(
     """
     started = time.monotonic()
     config = _config(investigation_id)
-    with open_graph(db_path) as graph:
+    with open_graph(store) as graph:
         pending = graph.get_state(config).next
         resumed = bool(pending) and pending != ("review",)
         if resumed:
@@ -91,7 +113,7 @@ def review(
     investigation_id: str,
     verdict: Verdict,
     notes: str = "",
-    db_path: Path = DB_PATH,
+    store: Store | None = None,
     reports_dir: Path = REPORTS_DIR,
 ) -> dict:
     """Record a human's verdict on a paused investigation and finish it."""
@@ -103,7 +125,7 @@ def review(
         "notes": notes,
         "at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
     }
-    with open_graph(db_path) as graph:
+    with open_graph(store) as graph:
         if not graph.get_state(_config(investigation_id)).next:
             raise ValueError(f"Investigation {investigation_id!r} is not awaiting review")
         graph.invoke(Command(resume=decision), _config(investigation_id), context=Context(None))

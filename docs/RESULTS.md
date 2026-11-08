@@ -203,6 +203,13 @@ the faults the watcher raised no alarm (highest score 26 against a threshold of 
 diagnoses were then confirmed with `vigil review ... --confirm` from a separate process, which
 resumed each paused investigation from its checkpoint.
 
+### Crash recovery
+
+With checkpoints in Postgres (Neon), investigation 6 was started, and its process killed in the
+middle of the second round of questions. Run again in a new process, it continued from its last
+checkpoint: the three findings of round one were kept rather than redone, only the two pending
+questions ran, and the diagnosis was correct. It was then confirmed from a third process.
+
 ### What went wrong on the way (and was fixed)
 
 - **Blaming the previous incident.** Agents first asked for one to two hours of history and
