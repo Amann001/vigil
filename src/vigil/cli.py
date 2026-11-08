@@ -3,6 +3,7 @@
 vigil watch                     watch the live shop; each alert becomes a job for the workers
 vigil worker                    run queued jobs (start several; a crashed one's jobs are resumed)
 vigil jobs                      the job queue
+vigil api                       the HTTP API for the UI (reviews need VIGIL_API_TOKEN)
 vigil replay N [--queue]        investigate alert N of the latest recorded campaign
 vigil list                      every investigation and its status
 vigil show ID                   one investigation: diagnosis and proposed fix
@@ -95,6 +96,7 @@ def main(argv: list[str] | None = None) -> None:
     commands.add_parser("watch", help="watch the live shop; each alert becomes a job")
     commands.add_parser("worker", help="run queued jobs")
     commands.add_parser("jobs", help="the job queue")
+    commands.add_parser("api", help="serve the HTTP API on 127.0.0.1:8030")
     replay = commands.add_parser("replay", help="investigate an alert of the latest campaign")
     replay.add_argument("number", type=int)
     replay.add_argument("--queue", action="store_true", help="queue it for the workers")
@@ -128,6 +130,10 @@ def main(argv: list[str] | None = None) -> None:
         from vigil.worker import main as work
 
         work(_database())
+    elif args.command == "api":
+        from vigil.api import main as serve
+
+        serve()
     elif args.command == "jobs":
         from vigil.queue import Queue
 
