@@ -72,6 +72,7 @@ Full tables and error analysis are in [docs/RESULTS.md](docs/RESULTS.md).
 
 | What | Result |
 |---|---|
+| **Evaluation, 14 scenarios (12 incidents)** | **11/12 root cause, kind and fix right; 12/12 detected, no false alarms; single agent 8/12, without memory 9/12 fixes** |
 | Root-cause diagnosis, 11 recorded incidents (replayed) | 11/11 correct service and kind of failure, median 94 s |
 | Root-cause diagnosis, 2 live incidents never seen in development | 2/2 correct; alert 25-75 s after the fault, diagnosis 49-102 s later |
 | Proposed fixes, 11 recorded incidents | 11/11 restart the real root cause; cited an earlier incident of the same kind 4/4 times one existed |

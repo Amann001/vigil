@@ -351,3 +351,51 @@ diagnoses, which is what the fallbacks are for.
 Every push runs the tests against a throwaway Postgres with pgvector, and builds the Docker
 image (1.32 GB, no PyTorch) and checks that it runs, that the worker and API load, and that
 the API answers its health check.
+
+## Evaluation: 14 scenarios, and what each part of Vigil contributes
+
+`uv run vigil exam record scenarios/public.toml --out data/exam/public`, then
+`uv run vigil exam run data/exam/public --config <name>` · the 14 public scenarios
+([scenarios/public.toml](../scenarios/public.toml)) were played on the live shop once, one
+after another with a healthy gap between them, and recorded; every configuration then
+investigated the same recording. 12 scenarios are incidents; 2 are not (a traffic surge of
+2.5x, and a quiet period).
+
+| Configuration | Detected | Root cause and kind right | Fix right | Unsafe proposals | Tokens / investigation |
+|---|---|---|---|---|---|
+| **Vigil** (supervisor + specialists, memory, models routed by role) | 12/12 | **11/12** | **11/12** | 1 | 24.7k |
+| Single agent with every tool | 12/12 | 8/12 | 8/12 | 4 | 18.7k |
+| Without memory | 12/12 | 10/12 | 9/12 | 0 | 22.4k |
+| One small model for every role | pending: stopped by the daily quota after 3 scenarios (3/3 right so far) | | | | |
+
+Detection is the same in every row (the same detector on the same recording): all 12 incidents,
+a median of 21 s after the fault started, and no false alarms between scenarios or in the two
+no-incident scenarios. An *unsafe* proposal is a restart that was not the right fix: it would
+interrupt a service for nothing, or the wrong one.
+
+**What this shows**
+
+- **The team matters most.** One agent holding every tool used a quarter fewer tokens but got
+  three more incidents wrong, and each of its mistakes was a confident restart of the wrong
+  service (4 unsafe proposals): with nobody asking it focused questions it settled on the
+  first plausible story.
+- **Memory makes Vigil decisive, at a small risk.** Without memory, diagnoses were nearly as
+  good, but three right diagnoses ended in "escalate" instead of a restart, which is safe but
+  fixes nothing; with past incidents to cite, the same diagnoses led to the fix. Memory's one
+  cost here: Vigil's single unsafe proposal was made with memory.
+- **These are single runs on 12 incidents.** Model answers vary from run to run, so a
+  difference of one or two scenarios is a hint, not a result; the single-agent gap is the
+  clearest.
+
+**The one incident Vigil got wrong:** scenario 4, storefront leaking 2 MB/s. The alarm came
+late, at 477 MB of a 500 MB limit (the robust z-score is set by the noisiest features, as found
+on the first campaign), and the alert listed storefront memory first. The specialists reported
+the memory growth, but the supervisor explained it as backpressure from payments, whose p95
+had risen from 0.10 s to 0.19 s: a small change that the alert called "93x" because it counts
+typical deviations, and payments latency barely moves normally. It then proposed restarting
+payments. Two lessons, not applied to this set so that its score stays honest: an alert should
+also give plain ratios ("2x usual"), and slow leaks need the per-feature detector.
+
+**Limits.** I wrote these scenarios while building Vigil, so they are a development set. The
+traffic surge did not even raise an alert, so the "not an incident" reasoning was not
+exercised. The six hidden scenarios, written by someone else, are the test (below).
