@@ -136,4 +136,6 @@ def main() -> None:
     store = default_store()
     queue = Queue(store) if _is_postgres(store) else None
     app = create_app(queue=queue, token=os.environ.get("VIGIL_API_TOKEN"))
-    uvicorn.run(app, host="127.0.0.1", port=API_PORT)
+    # 127.0.0.1 unless told otherwise: inside a container it must listen on all interfaces
+    # for the host to reach it (the Dockerfile sets VIGIL_API_HOST=0.0.0.0).
+    uvicorn.run(app, host=os.environ.get("VIGIL_API_HOST", "127.0.0.1"), port=API_PORT)

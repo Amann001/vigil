@@ -45,3 +45,30 @@ jobs:
 
       - name: Test
         run: uv run pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: vigil:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the image
+        run: |
+          docker run --rm vigil:ci --help
+          docker run --rm --entrypoint python vigil:ci -c "import vigil.api, vigil.worker, vigil.watch, onnxruntime; print('imports ok')"
+          docker run --rm --entrypoint python vigil:ci -c "import importlib.util as u; assert u.find_spec('torch') is None; print('no PyTorch in the runtime image')"
+          docker run -d --name api -p 8030:8030 vigil:ci api
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8030/health && break; sleep 1; done
+          curl -sf http://127.0.0.1:8030/health
+          docker rm -f api
+          docker image ls vigil:ci
