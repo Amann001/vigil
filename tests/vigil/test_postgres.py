@@ -33,7 +33,7 @@ def memory():
     schema = f"test_{uuid.uuid4().hex[:12]}"
     store = PostgresStore(URL, schema)
     yield Memory(store, bag_of_words, lambda query, texts: [0.0] * len(texts))
-    store.connection.close()
+    store.session.close()
     with connect(URL) as connection:
         connection.execute(f"drop schema if exists {schema} cascade")
 

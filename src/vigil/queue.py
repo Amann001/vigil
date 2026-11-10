@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from psycopg.types.json import Jsonb
 
-from vigil.db import connect
+from vigil.db import Session
 
 LEASE_SECONDS = 60
 BACKOFF_SECONDS = 30  # doubled after each failed attempt
@@ -57,25 +57,29 @@ class Job:
 
 class Queue:
     def __init__(self, url: str, schema: str | None = None) -> None:
-        self.connection = connect(url)
+        self.session = Session(url)
         # Table names are qualified with the schema rather than set via search_path: session
         # settings leak between clients behind a transaction-mode pooler (see vigil.db).
         self.table = "jobs"
         if schema is not None:
             if not re.fullmatch(r"[a-z_][a-z0-9_]*", schema):
                 raise ValueError(f"unsafe schema name {schema!r}")
-            self.connection.execute(f"create schema if not exists {schema}")
+            self.session.execute(f"create schema if not exists {schema}")
             self.table = f"{schema}.jobs"
-        self.connection.execute(SCHEMA.format(table=self.table))
+        self.session.execute(SCHEMA.format(table=self.table))
+
+    @property
+    def connection(self):
+        return self.session.connection
 
     def close(self) -> None:
-        self.connection.close()
+        self.session.close()
 
     def enqueue(
         self, kind: str, payload: dict, key: str | None = None, max_attempts: int = MAX_ATTEMPTS
     ) -> int | None:
         """Add a job; returns its id, or None if a job with this key already exists."""
-        row = self.connection.execute(
+        row = self.session.execute(
             f"""insert into {self.table} (kind, key, payload, max_attempts) values (%s, %s, %s, %s)
                on conflict (key) do nothing returning id""",
             (kind, key, Jsonb(payload), max_attempts),
@@ -84,7 +88,7 @@ class Queue:
 
     def claim(self, worker: str, lease_seconds: float = LEASE_SECONDS) -> Job | None:
         """Take the next job that is ready, or whose worker stopped renewing its lease."""
-        row = self.connection.execute(
+        row = self.session.execute(
             f"""
             update {self.table} set status = 'running', locked_by = %(worker)s,
                 lease_until = now() + make_interval(secs => %(lease)s),
@@ -112,7 +116,7 @@ class Queue:
 
     def heartbeat(self, job: Job, worker: str, lease_seconds: float = LEASE_SECONDS) -> bool:
         """Renew the lease; False means this worker no longer holds the job."""
-        cursor = self.connection.execute(
+        cursor = self.session.execute(
             f"""update {self.table} set lease_until = now() + make_interval(secs => %s)
                where id = %s and locked_by = %s and status = 'running'""",
             (lease_seconds, job.id, worker),
@@ -128,7 +132,7 @@ class Queue:
             self._finish(job.id, worker, "failed", error=error)
             return "failed"
         delay = BACKOFF_SECONDS * 2 ** (job.attempts - 1)
-        self.connection.execute(
+        self.session.execute(
             f"""update {self.table} set status = 'queued', locked_by = null, lease_until = null,
                    last_error = %s, run_after = now() + make_interval(secs => %s)
                where id = %s and locked_by = %s""",
@@ -137,7 +141,7 @@ class Queue:
         return "queued"
 
     def _finish(self, job_id: int, worker: str, status: str, result=None, error=None) -> bool:
-        cursor = self.connection.execute(
+        cursor = self.session.execute(
             f"""update {self.table} set status = %s, result = %s,
                    last_error = coalesce(%s, last_error), finished_at = now(), lease_until = null
                where id = %s and locked_by = %s""",
@@ -146,7 +150,7 @@ class Queue:
         return cursor.rowcount == 1
 
     def jobs(self, limit: int = 50) -> list[dict]:
-        rows = self.connection.execute(
+        rows = self.session.execute(
             f"""select id, kind, key, status, attempts, max_attempts, locked_by, last_error,
                       created_at, finished_at
                from {self.table} order by id desc limit %s""",
@@ -156,5 +160,5 @@ class Queue:
         return [dict(zip(names, row, strict=True)) for row in rows.fetchall()]
 
     def counts(self) -> dict[str, int]:
-        rows = self.connection.execute(f"select status, count(*) from {self.table} group by status")
+        rows = self.session.execute(f"select status, count(*) from {self.table} group by status")
         return dict(rows.fetchall())

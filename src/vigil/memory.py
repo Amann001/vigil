@@ -177,21 +177,24 @@ class PostgresStore:
     def __init__(self, url: str, schema: str | None = None) -> None:
         from pgvector.psycopg import register_vector
 
-        from vigil.db import connect
+        from vigil.db import Session
 
-        self.connection = connect(url)
+        self.session = Session(url)
         # Qualified table names, not search_path: see the note in vigil.queue.
         self.table = "memory"
         if schema is not None:
             if not re.fullmatch(r"[a-z_][a-z0-9_]*", schema):
                 raise ValueError(f"unsafe schema name {schema!r}")
-            self.connection.execute(f"create schema if not exists {schema}")
+            self.session.execute(f"create schema if not exists {schema}")
             self.table = f"{schema}.memory"
-        self.connection.execute(SCHEMA.format(table=self.table, dimensions=DIMENSIONS))
-        register_vector(self.connection)
+        self.session.execute(SCHEMA.format(table=self.table, dimensions=DIMENSIONS))
+        # The vector type exists only once the schema has created the extension; from now on
+        # every new connection (after a reconnect too) learns it.
+        self.session.on_connect = register_vector
+        register_vector(self.session.connection)
 
     def upsert(self, documents: Sequence[Document], vectors: np.ndarray) -> None:
-        with self.connection.cursor() as cursor:
+        with self.session.ensure().cursor() as cursor:
             for document, vector in zip(documents, vectors, strict=True):
                 cursor.execute(
                     f"""
@@ -219,7 +222,7 @@ class PostgresStore:
     _COLUMNS = "id, kind, title, body, occurred_at, metadata"
 
     def _rows(self, sql: str, params: dict) -> list[Document]:
-        rows = self.connection.execute(sql, params).fetchall()
+        rows = self.session.execute(sql, params).fetchall()
         return [
             Document(i, k, t, b, pd.Timestamp(o) if o else None, m or {})
             for i, k, t, b, o, m in rows
@@ -247,7 +250,7 @@ class PostgresStore:
         return self._rows(sql, params)
 
     def count(self) -> dict[str, int]:
-        rows = self.connection.execute(f"select kind, count(*) from {self.table} group by kind")
+        rows = self.session.execute(f"select kind, count(*) from {self.table} group by kind")
         return dict(rows.fetchall())
 
 
