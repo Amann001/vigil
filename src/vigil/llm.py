@@ -29,18 +29,21 @@ GEMINI = ("gemini", "gemini-3.5-flash")
 #   about ten investigations exhaust gpt-oss-120b for the day. Gemini Flash-Lite is
 #   the third budget. Specialists run in parallel, so each gets a different primary model.
 # Qwen 3.8 was tried for logs and dropped: it called a tool that does not exist in 1 of 3 tries.
+# Every role has a third model to fall back on: in live use both of the logs agent's models once
+# failed together (Gemini overloaded with 503s while gpt-oss-20b returned malformed tool-call
+# JSON) on every retry of the job, so the investigation failed for reasons unrelated to it.
 GEMINI_LITE = ("gemini", "gemini-3.1-flash-lite")
 GROQ_LARGE = ("groq", "openai/gpt-oss-120b")
 GROQ_SMALL = ("groq", "openai/gpt-oss-20b")
 ROLES = {
-    "planner": [GROQ_LARGE, GEMINI_LITE],
+    "planner": [GROQ_LARGE, GEMINI_LITE, GROQ_SMALL],
     "diagnosis": [GEMINI, GROQ_LARGE, GEMINI_LITE],
-    "metrics": [GROQ_LARGE, GEMINI_LITE],
-    "logs": [GROQ_SMALL, GEMINI_LITE],
-    "deploy": [GEMINI_LITE, GROQ_SMALL],
-    "remediation": [GROQ_LARGE, GEMINI_LITE],
-    "comms": [GROQ_SMALL, GEMINI_LITE],
-    "solo": [GROQ_LARGE, GEMINI_LITE],  # only in the single-agent ablation
+    "metrics": [GROQ_LARGE, GEMINI_LITE, GROQ_SMALL],
+    "logs": [GROQ_SMALL, GEMINI_LITE, GROQ_LARGE],
+    "deploy": [GEMINI_LITE, GROQ_SMALL, GROQ_LARGE],
+    "remediation": [GROQ_LARGE, GEMINI_LITE, GROQ_SMALL],
+    "comms": [GROQ_SMALL, GEMINI_LITE, GROQ_LARGE],
+    "solo": [GROQ_LARGE, GEMINI_LITE, GROQ_SMALL],  # only in the single-agent ablation
 }
 TIMEOUT_SECONDS = 90
 # Rate-limit errors say how long to wait; retrying a few times rides out a busy minute before
