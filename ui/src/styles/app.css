@@ -1,0 +1,310 @@
+/* The sky behind the constellation: it warms when something is wrong and turns to dawn when fixed. */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 80% at 50% 120%, var(--sky-glow) 0%, transparent 55%),
+    radial-gradient(90% 60% at 80% -10%, rgb(60 80 170 / 0.22) 0%, transparent 60%),
+    var(--midnight);
+  transition: --sky-glow 2s ease;
+}
+
+@property --sky-glow {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgb(40 60 140 / 0.35);
+}
+
+.sky-calm {
+  --sky-glow: rgb(40 60 140 / 0.35);
+}
+
+.sky-sodium {
+  --sky-glow: rgb(255 140 40 / 0.26);
+}
+
+.sky-flare {
+  --sky-glow: rgb(255 60 80 / 0.28);
+}
+
+.sky-aurora {
+  --sky-glow: rgb(80 220 190 / 0.24);
+}
+
+.sky-offline {
+  --sky-glow: rgb(60 60 80 / 0.2);
+}
+
+/* Glass panels float over the sky; the scene stays visible through them. */
+.panel {
+  background: var(--glass);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  box-shadow:
+    0 1px 0 rgb(232 237 255 / 0.05) inset,
+    0 30px 60px -30px rgb(0 0 0 / 0.6);
+}
+
+.rise-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.rise-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+.rise-letter {
+  display: inline-block;
+}
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgb(232 237 255 / 0.06);
+  color: var(--starlight);
+  font-weight: 520;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s var(--ease-out),
+    opacity 0.2s;
+}
+
+.button:hover:not(:disabled) {
+  background: rgb(232 237 255 / 0.12);
+  border-color: rgb(232 237 255 / 0.3);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.button-primary {
+  background: var(--sodium);
+  border-color: var(--sodium);
+  color: #1a0f00;
+  font-weight: 620;
+  box-shadow: 0 0 0 0 rgb(255 165 61 / 0.5);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #ffb75f;
+  border-color: #ffb75f;
+  box-shadow: 0 0 30px -4px rgb(255 165 61 / 0.6);
+}
+
+.button-danger {
+  background: rgb(255 77 94 / 0.14);
+  border-color: rgb(255 77 94 / 0.55);
+  color: #ffd2d7;
+}
+
+.button-danger:hover:not(:disabled) {
+  background: rgb(255 77 94 / 0.26);
+  border-color: var(--flare);
+}
+
+.button-ghost {
+  background: rgb(4 7 20 / 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.link-button {
+  color: var(--haze);
+  text-decoration: underline;
+  text-decoration-color: var(--dim);
+  text-underline-offset: 3px;
+  font-size: var(--step--1);
+}
+
+.link-button:hover {
+  color: var(--starlight);
+}
+
+.chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--haze);
+  font-size: var(--step--1);
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.chip:hover {
+  color: var(--starlight);
+}
+
+.chip[aria-pressed="true"] {
+  color: var(--midnight);
+  background: var(--starlight);
+  border-color: var(--starlight);
+}
+
+.chip.tone-sodium {
+  color: var(--sodium);
+  border-color: rgb(255 165 61 / 0.45);
+}
+
+.chip.tone-flare {
+  color: var(--flare);
+  border-color: rgb(255 77 94 / 0.45);
+}
+
+.chip.tone-aurora {
+  color: var(--aurora);
+  border-color: rgb(111 227 200 / 0.45);
+}
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--haze);
+}
+
+.dot-sodium {
+  background: var(--sodium);
+  box-shadow: 0 0 10px var(--sodium);
+}
+
+.dot-flare {
+  background: var(--flare);
+  box-shadow: 0 0 10px var(--flare);
+}
+
+.dot-aurora {
+  background: var(--aurora);
+  box-shadow: 0 0 10px var(--aurora);
+}
+
+.dot-calm {
+  background: var(--dim);
+}
+
+.thinking {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.thinking i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--sodium);
+  animation: think 1.2s ease-in-out infinite;
+}
+
+.thinking i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes think {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* The agents' colours, shared by the log, the team list and the comets in the scene. */
+.agent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--starlight);
+}
+
+.agent-metrics {
+  background: #8fb7ff;
+}
+
+.agent-logs {
+  background: #ffd38a;
+}
+
+.agent-deploy {
+  background: #c9a6ff;
+}
+
+.agent-recall,
+.agent-memory {
+  background: var(--aurora);
+}
+
+.agent-remediation,
+.agent-propose {
+  background: var(--sodium);
+}
+
+.agent-comms {
+  background: #ff9fb0;
+}
+
+.loading {
+  color: var(--haze);
+}
+
+.markdown {
+  display: grid;
+  gap: 0.7em;
+}
+
+.markdown h4 {
+  font-family: var(--display);
+  font-size: var(--step-1);
+  font-weight: 600;
+  margin: 0.5em 0 0;
+}
+
+.markdown ul {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 0.35em;
+}
+
+.markdown code {
+  background: rgb(232 237 255 / 0.07);
+  padding: 1px 5px;
+  border-radius: 4px;
+}

@@ -1,0 +1,65 @@
+.constellation {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.constellation canvas {
+  touch-action: pan-y;
+}
+
+.star-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.star-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.star-tag {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  white-space: nowrap;
+  transform: translateY(6px);
+  transition: transform 0.5s var(--ease-out);
+}
+
+.star-name {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 560;
+  font-stretch: 88%;
+  letter-spacing: 0.01em;
+  color: var(--starlight);
+  text-shadow: 0 0 18px rgb(4 7 20 / 0.9);
+}
+
+.star-metric {
+  font-size: 11.5px;
+  color: var(--haze);
+  text-shadow: 0 0 12px rgb(4 7 20 / 0.9);
+}
+
+.star-tag.tone-sodium .star-metric {
+  color: var(--sodium);
+}
+
+.star-tag.tone-flare .star-metric,
+.star-tag.tone-flare .star-name {
+  color: var(--flare);
+}
+
+.star-tag.tone-aurora .star-metric {
+  color: var(--aurora);
+}
+
+.star-tag.is-selected {
+  transform: translateY(12px);
+}

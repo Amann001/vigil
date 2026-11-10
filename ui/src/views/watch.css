@@ -1,0 +1,396 @@
+.watch {
+  position: fixed;
+  inset: var(--bar) 0 0 0;
+  z-index: 10;
+  pointer-events: none;
+  padding: 18px 22px 26px;
+}
+
+.watch > * {
+  pointer-events: auto;
+}
+
+/* Inbox: top left */
+.inbox {
+  position: absolute;
+  top: 18px;
+  left: 22px;
+  width: min(360px, calc(100vw - 44px));
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+}
+
+.inbox-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.inbox-row:hover {
+  background: rgb(232 237 255 / 0.06);
+}
+
+.inbox-text {
+  display: grid;
+  line-height: 1.35;
+}
+
+.inbox-text strong {
+  font-weight: 560;
+}
+
+.inbox-text span {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.inbox-go {
+  font-size: var(--step--1);
+  color: var(--sodium);
+}
+
+.is-pending .inbox-go {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(255 165 61 / 0.14);
+}
+
+.pulse {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sodium);
+}
+
+.pulse::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid var(--sodium);
+  animation: ping 1.6s var(--ease-out) infinite;
+}
+
+@keyframes ping {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.inbox-empty {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  line-height: 1.45;
+}
+
+.inbox-empty strong {
+  font-weight: 560;
+}
+
+.inbox-empty span {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.inbox-empty a {
+  color: var(--starlight);
+}
+
+/* Service vitals: right */
+.side {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  width: 300px;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.legend p {
+  color: var(--starlight);
+  margin-bottom: 12px;
+}
+
+.legend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legend-spark {
+  position: relative;
+  width: 28px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--starlight));
+  flex: none;
+}
+
+.legend-spark::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--starlight);
+  box-shadow: 0 0 8px var(--starlight);
+  animation: travel 1.4s linear infinite;
+}
+
+.legend-spark.is-slow::after {
+  animation-duration: 4.5s;
+}
+
+.legend-spark.is-failed {
+  background: linear-gradient(90deg, transparent, var(--flare));
+}
+
+.legend-spark.is-failed::after {
+  background: var(--flare);
+  box-shadow: 0 0 8px var(--flare);
+}
+
+.legend-comet {
+  width: 28px;
+  height: 10px;
+  flex: none;
+  border-top: 1.5px solid #c9a6ff;
+  border-radius: 50% 50% 0 0;
+  position: relative;
+  opacity: 0.9;
+}
+
+.legend-comet::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: -3.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f1e6ff;
+  box-shadow: 0 0 8px #c9a6ff;
+}
+
+@keyframes travel {
+  from {
+    right: 100%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    right: 0;
+    opacity: 1;
+  }
+}
+
+.service-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.vitals-name {
+  font-size: var(--step-3);
+  font-stretch: 85%;
+}
+
+.vitals-role {
+  color: var(--haze);
+  font-size: var(--step--1);
+  margin-top: 2px;
+}
+
+.vitals-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+  font-size: var(--step--1);
+  color: var(--aurora);
+}
+
+.vitals-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.state-calm {
+  color: var(--aurora);
+}
+
+.state-sodium {
+  color: var(--sodium);
+}
+
+.state-flare {
+  color: var(--flare);
+}
+
+.vitals dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.vital {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "label value" "spark spark";
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.vital dt {
+  grid-area: label;
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.vital dd {
+  grid-area: value;
+  margin: 0;
+  font-weight: 560;
+}
+
+.vital .spark {
+  grid-area: spark;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.spark {
+  color: var(--haze);
+}
+
+.spark-calm {
+  color: #9fb0e8;
+}
+
+.spark-sodium {
+  color: var(--sodium);
+}
+
+.spark-flare {
+  color: var(--flare);
+}
+
+.spark-aurora {
+  color: var(--aurora);
+}
+
+/* The status headline: the biggest thing on the screen, saying what matters in words. */
+.status {
+  position: absolute;
+  left: 22px;
+  bottom: 26px;
+  max-width: min(980px, calc(100vw - 380px));
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.status > * {
+  pointer-events: auto;
+}
+
+.status-title {
+  font-size: var(--step-6);
+  font-weight: 620;
+  font-stretch: 78%;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  text-wrap: balance;
+  text-shadow: 0 0 60px rgb(4 7 20 / 0.8);
+}
+
+.status-decide .status-title,
+.status-investigating .status-title {
+  color: #fff3e3;
+}
+
+.status-line {
+  max-width: 56ch;
+  color: var(--haze);
+  font-size: var(--step-1);
+  line-height: 1.45;
+  text-shadow: 0 0 30px rgb(4 7 20 / 0.9);
+}
+
+.corner {
+  position: absolute;
+  right: 22px;
+  bottom: 26px;
+}
+
+@media (max-width: 1100px) {
+  .side {
+    display: none;
+  }
+
+  .status {
+    max-width: calc(100vw - 44px);
+  }
+
+  .corner {
+    top: 18px;
+    bottom: auto;
+    right: 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .watch {
+    padding: 12px 16px 20px;
+  }
+
+  .inbox {
+    left: 16px;
+    top: 12px;
+    width: calc(100vw - 32px);
+  }
+
+  .status {
+    left: 16px;
+    bottom: 20px;
+  }
+
+  .corner {
+    display: none;
+  }
+}
+

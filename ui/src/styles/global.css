@@ -1,0 +1,150 @@
+@import "@fontsource-variable/bricolage-grotesque/standard.css";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
+
+/*
+  Vigil keeps the night watch. The palette is a night sky and the lights in it:
+  starlight for what is healthy, sodium-lamp amber for trouble being looked into,
+  flare red for a service that is down, and aurora for a problem that has been fixed.
+*/
+:root {
+  --midnight: #040714;
+  --deep: #0a1028;
+  --dusk: #141c3d;
+  --starlight: #e8edff;
+  --haze: #8b95bd;
+  --dim: #545e86;
+  --sodium: #ffa53d;
+  --flare: #ff4d5e;
+  --aurora: #6fe3c8;
+
+  --glass: rgb(10 16 40 / 0.58);
+  --glass-strong: rgb(10 16 40 / 0.82);
+  --line: rgb(232 237 255 / 0.09);
+  --line-strong: rgb(232 237 255 / 0.18);
+
+  --display: "Bricolage Grotesque Variable", "Arial Narrow", sans-serif;
+  --text: "Geist Variable", system-ui, sans-serif;
+  --code: "Geist Mono Variable", ui-monospace, monospace;
+
+  /* A modular scale (ratio 1.25) from a 15 px body. */
+  --step--1: 0.8rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.17rem;
+  --step-2: 1.465rem;
+  --step-3: 1.83rem;
+  --step-4: 2.29rem;
+  --step-5: clamp(2.6rem, 4vw + 1rem, 4.4rem);
+  --step-6: clamp(3.2rem, 7vw + 1rem, 7.6rem);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --radius-s: 6px;
+  --radius-m: 14px;
+  --bar: 56px;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--midnight);
+  color: var(--starlight);
+  font-family: var(--text);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+}
+
+code,
+.code {
+  font-family: var(--code);
+  font-size: 0.86em;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--sodium);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgb(255 165 61 / 0.35);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Scrollbars that belong to the night, not the operating system. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dusk) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

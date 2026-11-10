@@ -1,0 +1,97 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(4 7 20 / 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px;
+}
+
+.drawer {
+  width: min(440px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  padding: 26px;
+  border-radius: var(--radius-m);
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--line);
+  display: grid;
+  align-content: start;
+  gap: 22px;
+}
+
+.drawer h2 {
+  font-size: var(--step-4);
+  font-stretch: 80%;
+}
+
+.drawer-intro {
+  color: var(--haze);
+  line-height: 1.55;
+}
+
+.drawer fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.drawer legend {
+  font-weight: 580;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.choice-list {
+  display: grid;
+  gap: 6px;
+}
+
+.choice {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.choice span {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.choice:hover {
+  border-color: var(--line-strong);
+}
+
+.choice[aria-pressed="true"] {
+  border-color: rgb(255 77 94 / 0.6);
+  background: rgb(255 77 94 / 0.08);
+}
+
+.drawer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.drawer-note {
+  color: var(--haze);
+  line-height: 1.5;
+}
+
+.note-done {
+  color: var(--aurora);
+}
+
+.note-error {
+  color: #ffb3bb;
+}

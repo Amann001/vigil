@@ -1,0 +1,202 @@
+.watchbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 30;
+  height: var(--bar);
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 22px;
+  background: linear-gradient(to bottom, rgb(4 7 20 / 0.85), rgb(4 7 20 / 0));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-word {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 640;
+  font-stretch: 82%;
+  letter-spacing: -0.01em;
+}
+
+/* The watcher's eye: a slow breath when all is quiet, quick and amber when it is working. */
+.brand-eye {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgb(232 237 255 / 0.4);
+}
+
+.brand-eye::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--starlight);
+  box-shadow: 0 0 10px var(--starlight);
+  animation: breathe 4.5s ease-in-out infinite;
+}
+
+.eye-investigating::after,
+.eye-decide::after {
+  background: var(--sodium);
+  box-shadow: 0 0 12px var(--sodium);
+  animation-duration: 1.1s;
+}
+
+.eye-recovered::after {
+  background: var(--aurora);
+  box-shadow: 0 0 12px var(--aurora);
+}
+
+.eye-offline::after {
+  background: var(--dim);
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(0.75);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pages {
+  display: flex;
+  gap: 4px;
+}
+
+.pages a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--haze);
+  text-decoration: none;
+  transition: color 0.2s, background 0.2s;
+}
+
+.pages a:hover {
+  color: var(--starlight);
+}
+
+.pages a[aria-current="page"] {
+  color: var(--starlight);
+  background: rgb(232 237 255 / 0.07);
+}
+
+.badge {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--sodium);
+  color: var(--midnight);
+  font-size: 11.5px;
+  font-weight: 650;
+  display: grid;
+  place-items: center;
+}
+
+.detector {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detector svg {
+  display: block;
+}
+
+.tick {
+  fill: rgb(139 149 189 / 0.55);
+}
+
+.tick-hot {
+  fill: var(--sodium);
+}
+
+.detector-line {
+  stroke: rgb(255 165 61 / 0.45);
+  stroke-dasharray: 2 3;
+  stroke-width: 1;
+}
+
+.detector-mood {
+  width: 64px;
+  font-size: var(--step--1);
+  color: var(--haze);
+}
+
+.mood-alarmed {
+  color: var(--sodium);
+}
+
+.mood-uneasy {
+  color: #ffd38a;
+}
+
+.clock {
+  display: grid;
+  text-align: right;
+  line-height: 1.2;
+  font-size: var(--step--1);
+}
+
+.clock-utc {
+  color: var(--dim);
+}
+
+.mode {
+  font-size: var(--step--1);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--haze);
+}
+
+.mode-live {
+  color: var(--aurora);
+  border-color: rgb(111 227 200 / 0.35);
+}
+
+.mode-demo {
+  color: var(--sodium);
+  border-color: rgb(255 165 61 / 0.35);
+}
+
+@media (max-width: 900px) {
+  .detector,
+  .clock {
+    display: none;
+  }
+
+  .watchbar {
+    gap: 12px;
+    padding: 0 14px;
+  }
+
+  .pages {
+    margin-left: auto;
+  }
+
+  .pages a {
+    padding: 7px 9px;
+  }
+}

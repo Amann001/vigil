@@ -12,3 +12,6 @@ bin
 *.local.md
 tests
 docs
+
+# The war-room UI is built and served separately
+ui/

@@ -1,0 +1,232 @@
+.decision {
+  display: grid;
+  gap: 18px;
+}
+
+.decision h2 {
+  font-size: var(--step-2);
+  font-stretch: 85%;
+}
+
+.decision-wait {
+  color: var(--haze);
+  line-height: 1.5;
+}
+
+.question-block {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.question-block legend {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 580;
+  margin-bottom: 4px;
+  padding: 0;
+}
+
+.q-number {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+  color: var(--haze);
+}
+
+.question-context {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgb(232 237 255 / 0.05);
+  border: 1px solid var(--line);
+}
+
+.segmented button {
+  min-height: 36px;
+  border-radius: 999px;
+  color: var(--haze);
+  transition:
+    background 0.25s,
+    color 0.25s;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--starlight);
+  color: var(--midnight);
+  font-weight: 560;
+}
+
+.notes {
+  display: grid;
+  gap: 8px;
+  overflow: hidden;
+  font-size: var(--step--1);
+  color: var(--haze);
+}
+
+textarea,
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: rgb(4 7 20 / 0.5);
+  color: var(--starlight);
+  resize: vertical;
+}
+
+textarea:focus,
+input:focus {
+  outline: none;
+  border-color: var(--sodium);
+}
+
+.options {
+  display: grid;
+  gap: 6px;
+}
+
+.option,
+.option-hit {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.option-instead {
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.option-instead.is-on {
+  padding-bottom: 6px;
+}
+
+.option-instead .choice-row {
+  padding: 0 4px;
+}
+
+.option strong,
+.option-hit strong {
+  font-weight: 560;
+}
+
+.option span,
+.option-hit span {
+  color: var(--haze);
+  font-size: var(--step--1);
+  line-height: 1.4;
+}
+
+.option:hover,
+.option-hit:hover {
+  border-color: var(--line-strong);
+}
+
+.option[aria-pressed="true"],
+.option-hit[aria-pressed="true"] {
+  border-color: rgb(255 165 61 / 0.6);
+  background: rgb(255 165 61 / 0.07);
+}
+
+.decision-send {
+  width: 100%;
+  min-height: 48px;
+  font-size: var(--step-1);
+}
+
+.decision-send.is-quiet {
+  background: rgb(232 237 255 / 0.1);
+  border-color: var(--line-strong);
+  color: var(--starlight);
+}
+
+.guardrail-note {
+  margin-top: -8px;
+  color: var(--dim);
+  font-size: var(--step--1);
+  line-height: 1.45;
+}
+
+.decision-error {
+  color: #ffb3bb;
+  font-size: var(--step--1);
+}
+
+.decision.is-done h2 {
+  color: var(--starlight);
+}
+
+.decision.is-fixed h2 {
+  color: var(--aurora);
+}
+
+.decided {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.decided dt {
+  color: var(--dim);
+  font-size: var(--step--1);
+  margin-top: 8px;
+}
+
+.decided dd {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.token {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--line-strong);
+}
+
+.token label {
+  display: grid;
+  gap: 4px;
+}
+
+.token label span {
+  color: var(--haze);
+  font-size: var(--step--1);
+  line-height: 1.45;
+}
+
+.token-row {
+  display: flex;
+  gap: 8px;
+}
+
+.token-row .button {
+  min-height: 40px;
+  flex: none;
+}

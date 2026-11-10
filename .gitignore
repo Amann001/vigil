@@ -32,3 +32,6 @@ bin/
 .idea/
 .DS_Store
 Thumbs.db
+
+# The war-room UI
+node_modules/
