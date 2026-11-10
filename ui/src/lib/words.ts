@@ -1,3 +1,4 @@
+import { now as clockNow } from "./clock";
 import type { Category, Diagnosis, Investigation, Proposal, Status } from "./types";
 
 /** Plain-English names for everything the system calls by an internal name. */
@@ -156,7 +157,7 @@ export function duration(totalSeconds: number): string {
   return `${h} h ${m % 60} min`;
 }
 
-export function ago(iso: string, now = Date.now()): string {
+export function ago(iso: string, now = clockNow()): string {
   const s = (now - new Date(iso).getTime()) / 1000;
   if (s < 45) return "just now";
   if (s < 3600) return `${Math.round(s / 60)} min ago`;

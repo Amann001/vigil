@@ -1,3 +1,4 @@
+import { setClock } from "./clock";
 import type { Investigation, InvestigationSummary, SystemView } from "./types";
 
 /**
@@ -113,6 +114,11 @@ class Player {
     return this.loopStarted - (this.start + START_AT * 1000);
   }
 
+  /** The moment of the recording being shown, on the shifted timeline. */
+  now(): number {
+    return this.start + this.position * 1000 + this.offset();
+  }
+
   decide() {
     this.decided = true;
   }
@@ -182,7 +188,11 @@ function load(): Promise<Player> {
       if (!r.ok) throw new Error("No recording to replay");
       return r.json();
     })
-    .then((tape: Tape) => new Player(tape));
+    .then((tape: Tape) => {
+      const replay = new Player(tape);
+      setClock(() => replay.now());
+      return replay;
+    });
   return player;
 }
 

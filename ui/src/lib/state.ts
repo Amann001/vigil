@@ -1,3 +1,4 @@
+import { now as clockNow } from "./clock";
 import type { Focus } from "../scene/Constellation";
 import type { Investigation, InvestigationSummary, Service, SystemView, TimelineEvent } from "./types";
 import { SERVICES } from "./types";
@@ -68,7 +69,7 @@ export function situation(
   system: SystemView | null,
   live: Investigation[] | null,
   list: InvestigationSummary[] | null,
-  now = Date.now(),
+  now = clockNow(),
 ): Situation {
   // Only live incidents are about the shop as it is now; a replayed one waiting for review is
   // listed in the inbox but does not change what the sky says.

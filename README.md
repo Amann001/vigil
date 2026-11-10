@@ -12,6 +12,8 @@ with a team of LLM agents, and fixes them only after a human approves.
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Status](https://img.shields.io/badge/status-in%20development-orange)
 
+<img src="docs/images/war-room-recovered.jpg" alt="Vigil's war room after an incident: the orders star glows aurora green and the headline reads Orders is back" width="100%">
+
 </div>
 
 ---
@@ -30,6 +32,32 @@ Every minute of that investigation is downtime.
 3. **Remembers** past incidents and runbooks, and retrieves the relevant ones by meaning.
 4. **Proposes a fix** and **asks a human** before taking any action that changes the system.
 5. **Writes the incident report** once the system has recovered.
+
+## The war room
+
+<p align="center"><img src="docs/images/war-room-investigating.jpg" alt="The war room during an incident: the orders star glows amber while agents circle it as comets" width="100%"></p>
+
+The shop is drawn as a constellation: each service is a star, each dependency a thread of light
+along which live requests travel as sparks. Everything moves with the real metrics: busier
+services send more sparks, slow calls make them crawl, failed calls turn them red, and a service
+that stops responding goes dark. When the detector raises an alert, the agents circle the
+suspected star as comets while the headline says what is wrong in plain words.
+
+| | |
+|---|---|
+| ![Opening](docs/images/war-room-opening.jpg) | ![All quiet](docs/images/war-room-quiet.jpg) |
+| ![Your decision](docs/images/war-room-decision.jpg) | ![Fixed](docs/images/war-room-fixed.jpg) |
+
+Opening an incident shows the investigation as it happens: each question the supervisor asked,
+which tools each specialist used and what it found, the diagnosis, the runbooks and past
+incidents recalled from memory, and the proposed fix. The decision panel asks the two questions
+an on-call engineer would, in order: is the diagnosis right, and what should happen now.
+Nothing changes until a human answers. The scores page shows the evaluation, and
+"Break something" injects a real fault into the running shop.
+
+Published without a backend, the war room replays a real recorded incident instead
+(`scripts/record_demo.py`): orders leaking memory on the live shop, caught 38 s after the fault,
+diagnosed in 102 s, the restart approved in the UI.
 
 ## Architecture
 
@@ -99,6 +127,7 @@ builder; only their totals are published.
 | ML | scikit-learn, PyTorch (CPU, training only), ONNX Runtime, Drain3, fastembed |
 | Observability | Prometheus, structured JSON logs, Langfuse |
 | API | FastAPI |
+| War room | React, Three.js (react-three-fiber), Motion, Vite |
 
 ## Getting started
 
@@ -118,6 +147,14 @@ uv run python -m shop.launch
 ```
 
 The agents need free API keys for Gemini and Groq: copy `.env.example` to `.env` and fill them in.
+Then build the war room once (needs [Node.js](https://nodejs.org/)) and start Vigil:
+
+```bash
+cd ui && npm ci && npm run build && cd ..
+uv run vigil up                     # war room at http://127.0.0.1:8030, the watcher and a worker
+```
+
+Or run the parts on their own:
 
 ```bash
 uv run vigil watch                  # watch the live shop; investigate each alert

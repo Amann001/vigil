@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Panel, RisingText, Sparkline } from "../components/Bits";
 import { BreakSomething } from "../components/BreakSomething";
+import { now } from "../lib/clock";
 import { href } from "../lib/route";
 import { diagnosisOf, eventsOf, serviceOf, type Situation } from "../lib/state";
 import { SERVICES, type InvestigationSummary, type Service, type SystemView } from "../lib/types";
@@ -23,7 +24,7 @@ function useHeadline(s: Situation, system: SystemView | null): { title: string; 
     const d = diagnosisOf(s.running);
     const service = serviceOf(s.running);
     const started = s.running.started_at ?? s.running.alert_at;
-    const seconds = (Date.now() - new Date(started).getTime()) / 1000;
+    const seconds = (now() - new Date(started).getTime()) / 1000;
     const agents = s.agents.length;
     return {
       title: d ? `${headline(d)}.` : service ? `Something is wrong with ${serviceName[service]}.` : "Something is wrong.",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { now as clockNow } from "../lib/clock";
 import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import type { SystemView } from "../lib/types";
@@ -11,9 +12,9 @@ const PAGES: { route: Route; label: string }[] = [
 ];
 
 function useNow(ms = 1000) {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date(clockNow()));
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), ms);
+    const timer = window.setInterval(() => setNow(new Date(clockNow())), ms);
     return () => window.clearInterval(timer);
   }, [ms]);
   return now;
