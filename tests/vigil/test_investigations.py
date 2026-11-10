@@ -292,3 +292,19 @@ def test_the_pager_does_not_page_twice_for_one_service_but_does_for_another():
 
     services = [alert_service(a) for a in paged if a is not None]
     assert services == ["payments", "inventory"]
+
+
+def test_an_alarm_about_a_service_caught_up_in_a_paged_incident_is_not_paged_again():
+    columns = ["inventory.error_ratio", "orders->inventory.failure_ratio", "orders.error_ratio"]
+    index = pd.date_range("2026-11-04T12:00:00Z", periods=200, freq="5s")
+    features = pd.DataFrame({c: 0.0 for c in columns}, index=index)
+    features.iloc[::7, :] = 0.01
+    detector = AlertDetector().fit(features)
+    pager = Pager(since=index[0])
+    features.iloc[150:160, :] = 0.5  # inventory fails, and with it orders and its calls to it
+    features.iloc[150:160, 0] = 0.6  # inventory most of all
+    features.iloc[162:, 2] = 0.9  # then orders' own error rate leads a second alarm
+
+    paged = [pager.new_alert(detector, features) for _ in range(3)]
+
+    assert [alert_service(a) for a in paged if a is not None] == ["inventory"]

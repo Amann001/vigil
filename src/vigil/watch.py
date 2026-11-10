@@ -22,10 +22,11 @@ from vigil.worker import enqueue_investigation
 
 POLL_SECONDS = STEP_SECONDS
 LOOKBACK = pd.Timedelta("3min")  # enough for the 30 s rate windows and 3 alarm points in a row
-# A service stays abnormal until it is fixed, which waits for a human review, so it is paged for
-# at most once in this long. Another service's alarm is a new incident and is paged at once.
-# (A single quiet period for all services, as before, re-paged a payments incident that was
-# still awaiting review, and swallowed an inventory incident that began during it.)
+# An incident stays abnormal until it is fixed, which waits for a human review, so the services
+# it involves are paged for at most once in this long. An alarm about any other service is a
+# new incident and is paged at once. (A single quiet period for all services, as before,
+# re-paged a payments incident still awaiting review and swallowed an inventory incident that
+# began during it.)
 SAME_SERVICE_COOLDOWN = pd.Timedelta("30min")
 
 
@@ -35,19 +36,37 @@ def trained_detector() -> AlertDetector:
     return AlertDetector().fit(data.features[training])
 
 
+def _service(feature: str) -> str:
+    """The service a feature is about: "orders->inventory.failure_ratio" is about inventory."""
+    return feature.split(".")[0].split("->")[-1]
+
+
 def alert_service(alert: Alert) -> str:
-    """The service an alert is about: its most unusual signal's (the callee, for a call)."""
-    subject = alert.signals[0].feature.split(".")[0]
-    return subject.split("->")[-1]
+    """The service an alert is about: its most unusual signal's."""
+    return _service(alert.signals[0].feature)
+
+
+# An alert lists its most unusual signals even when the last few are barely unusual; only
+# those this far from normal (in typical deviations) count as part of the incident.
+INVOLVED_DEVIATIONS = 10
+
+
+def alert_services(alert: Alert) -> set[str]:
+    """Every service among an alert's clearly abnormal signals: those its incident involves."""
+    return {_service(s.feature) for s in alert.signals if s.deviations >= INVOLVED_DEVIATIONS}
 
 
 class Pager:
-    """Decides which alarms page the team: each alarm once, each service at most once per
-    SAME_SERVICE_COOLDOWN."""
+    """Decides which alarms page the team: each alarm once, and not again for an incident already
+    paged in the last SAME_SERVICE_COOLDOWN.
+
+    An alarm belongs to an earlier incident when the service it is about was among that
+    incident's unusual signals: a failing inventory makes orders fail too, and the alarm that
+    follows a few seconds later about orders is the same incident, not a new one."""
 
     def __init__(self, since: pd.Timestamp) -> None:
         self.seen_until = since  # alarms that started before this have been considered
-        self.last_paged: dict[str, pd.Timestamp] = {}
+        self.paged: list[tuple[pd.Timestamp, set[str]]] = []
 
     def new_alert(self, detector: AlertDetector, features: pd.DataFrame) -> Alert | None:
         for alert in detector.alerts(features):
@@ -55,10 +74,12 @@ class Pager:
                 continue
             self.seen_until = alert.detected_at
             service = alert_service(alert)
-            last = self.last_paged.get(service)
-            if last is not None and alert.detected_at - last < SAME_SERVICE_COOLDOWN:
-                continue  # the same incident, still unresolved
-            self.last_paged[service] = alert.detected_at
+            if any(
+                alert.detected_at - at < SAME_SERVICE_COOLDOWN and service in services
+                for at, services in self.paged
+            ):
+                continue  # part of an incident already paged, still unresolved
+            self.paged.append((alert.detected_at, alert_services(alert)))
             return alert
         return None
 
