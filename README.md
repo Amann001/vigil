@@ -14,6 +14,8 @@ with a team of LLM agents, and fixes them only after a human approves.
 
 <img src="docs/images/war-room-recovered.jpg" alt="Vigil's war room after an incident: the orders star glows aurora green and the headline reads Orders is back" width="100%">
 
+**[Watch the 2-minute demo](docs/demo/vigil-demo.mp4)**: a real incident, from the fault to the approved fix.
+
 </div>
 
 ---
@@ -57,7 +59,8 @@ Nothing changes until a human answers. The scores page shows the evaluation, and
 
 Published without a backend, the war room replays a real recorded incident instead
 (`scripts/record_demo.py`): orders leaking memory on the live shop, caught 38 s after the fault,
-diagnosed in 102 s, the restart approved in the UI.
+diagnosed in 102 s, the restart approved in the UI. The demo video is that replay, recorded in
+headless Chrome by `ui/scripts/record-video.mjs`.
 
 ## Architecture
 

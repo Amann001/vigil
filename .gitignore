@@ -35,3 +35,5 @@ Thumbs.db
 
 # The war-room UI
 node_modules/
+ui/video-frames/
+ui/*.mp4
