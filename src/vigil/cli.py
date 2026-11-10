@@ -1,5 +1,6 @@
 """Vigil's command line.
 
+vigil up                        the war room, the watcher and a worker, together (Ctrl+C stops all)
 vigil watch                     watch the live shop; each alert becomes a job for the workers
 vigil worker                    run queued jobs (start several; a crashed one's jobs are resumed)
 vigil jobs                      the job queue
@@ -33,6 +34,34 @@ def _database() -> str:
     if not _is_postgres(store):
         sys.exit("The job queue needs a Postgres database: set DATABASE_URL in .env.")
     return store
+
+
+def _up() -> None:
+    """Start everything Vigil runs, each as its own process, and stop them all together."""
+    import subprocess
+    import time
+
+    from vigil.api import API_PORT, UI_DIR
+    from vigil.investigations import _is_postgres, default_store
+
+    parts = [["api"], ["watch"]]
+    if _is_postgres(default_store()):
+        parts.append(["worker"])  # with no database the watcher investigates by itself
+    if not (UI_DIR / "index.html").exists():
+        print("The war room is not built yet: cd ui && npm ci && npm run build")
+    processes = [subprocess.Popen([sys.executable, "-m", "vigil.cli", *part]) for part in parts]
+    print(f"War room: http://127.0.0.1:{API_PORT}/  (Ctrl+C stops everything)", flush=True)
+    try:
+        while all(p.poll() is None for p in processes):
+            time.sleep(1)
+        print("A process stopped; stopping the others.")
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for process in processes:
+            process.terminate()
+        for process in processes:
+            process.wait(timeout=15)
 
 
 def _replay(number: int, queued: bool) -> None:
@@ -100,6 +129,7 @@ def main(argv: list[str] | None = None) -> None:
         return
     parser = argparse.ArgumentParser(prog="vigil", description="The AI on-call engineer.")
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("up", help="the war room, the watcher and a worker, together")
     commands.add_parser("watch", help="watch the live shop; each alert becomes a job")
     commands.add_parser("worker", help="run queued jobs")
     commands.add_parser("jobs", help="the job queue")
@@ -128,7 +158,9 @@ def main(argv: list[str] | None = None) -> None:
     verdict.add_argument("--by", default=getpass.getuser(), help="who is approving")
     args = parser.parse_args(argv)
 
-    if args.command == "watch":
+    if args.command == "up":
+        _up()
+    elif args.command == "watch":
         from vigil.watch import main as watch
 
         watch()
@@ -168,3 +200,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "review":
         _find(args.id)
         print(format_report(_review(args)))
+
+
+if __name__ == "__main__":  # `python -m vigil.cli`, as `vigil up` starts its parts
+    main()
