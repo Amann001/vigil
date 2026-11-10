@@ -23,6 +23,7 @@ Run it with: uv run vigil api
 import hmac
 import json
 import os
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -60,6 +61,10 @@ class ChaosRequest(BaseModel):
 
 
 LIVE_STATUSES = ("investigating", "acting")
+# A running investigation rewrites its timeline after every step, which takes a minute or two
+# at most. One untouched for this long belongs to a worker that was stopped mid-job; it is
+# shown as stopped rather than as running forever.
+STALE_SECONDS = 15 * 60
 UI_DIR = Path(__file__).resolve().parents[2] / "ui" / "dist"
 
 
@@ -87,11 +92,16 @@ def create_app(
         if not live_dir.exists():
             return []
         found = []
+        now = time.time()
         for path in live_dir.glob("*.json"):
             try:
-                found.append(json.loads(path.read_text(encoding="utf-8")))
+                timeline = json.loads(path.read_text(encoding="utf-8"))
+                stale = now - path.stat().st_mtime > STALE_SECONDS
             except (OSError, json.JSONDecodeError):  # being replaced right now; next poll
                 continue
+            if stale and timeline["status"] in LIVE_STATUSES:
+                timeline["status"] = "failed"
+            found.append(timeline)
         return sorted(found, key=lambda t: t["alert_at"], reverse=True)
 
     def require_token(authorization: str | None = Header(None)) -> None:
@@ -107,7 +117,7 @@ def create_app(
         path = reports_dir / f"{investigation_id}.json"
         running = live_dir / f"{investigation_id}.json"
         if not path.exists() and running.exists():  # still investigating: no report yet
-            return json.loads(running.read_text(encoding="utf-8"))
+            return next(t for t in timelines() if t["id"] == investigation_id)
         if not path.exists():
             raise HTTPException(404, f"No investigation {investigation_id!r}")
         report = json.loads(path.read_text(encoding="utf-8"))
@@ -140,7 +150,7 @@ def create_app(
         running = [
             {"id": t["id"], "status": t["status"], "alert_at": t["alert_at"]}
             for t in timelines()
-            if t["id"] not in known and t["status"] == "investigating"
+            if t["id"] not in known and t["status"] in ("investigating", "failed")
         ]
         return sorted(running + finished, key=lambda r: r["alert_at"], reverse=True)
 

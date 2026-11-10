@@ -169,3 +169,21 @@ def test_the_built_ui_is_served_without_hiding_the_api(tmp_path):
 
     assert "Vigil" in client.get("/").text
     assert client.get("/health").json()["status"] == "ok"
+
+
+def test_a_timeline_left_behind_by_a_stopped_worker_is_shown_as_stopped(tmp_path):
+    import os
+    import time
+
+    from vigil.api import STALE_SECONDS
+
+    live = tmp_path / "live"
+    live.mkdir()
+    path = live / "live-3.json"
+    path.write_text(json.dumps({"id": "live-3", "status": "investigating", "alert_at": "x"}))
+    old = time.time() - STALE_SECONDS - 60
+    os.utime(path, (old, old))
+    client = TestClient(create_app(reports_dir=tmp_path))
+
+    assert client.get("/live").json() == []
+    assert client.get("/investigations/live-3").json()["status"] == "failed"
