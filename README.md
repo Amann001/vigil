@@ -72,7 +72,8 @@ Full tables and error analysis are in [docs/RESULTS.md](docs/RESULTS.md).
 
 | What | Result |
 |---|---|
-| **Evaluation, 14 scenarios (12 incidents)** | **11/12 root cause, kind and fix right; 12/12 detected, no false alarms; single agent 8/12, without memory 9/12 fixes** |
+| **Hidden test, 6 scenarios written by someone else** | **5/5 incidents: root cause, kind and fix right; the non-incident left alone; no unsafe fixes, no false alarms** |
+| **Evaluation, 14 scenarios (12 incidents)** | **11/12 root cause, kind and fix right; 12/12 detected, no false alarms; single agent 8/12, without memory 9/12 fixes, one small model 9/12** |
 | Root-cause diagnosis, 11 recorded incidents (replayed) | 11/11 correct service and kind of failure, median 94 s |
 | Root-cause diagnosis, 2 live incidents never seen in development | 2/2 correct; alert 25-75 s after the fault, diagnosis 49-102 s later |
 | Proposed fixes, 11 recorded incidents | 11/11 restart the real root cause; cited an earlier incident of the same kind 4/4 times one existed |
@@ -84,9 +85,9 @@ Full tables and error analysis are in [docs/RESULTS.md](docs/RESULTS.md).
 | Anomaly detection, NAB | F1 0.25-0.40 across four detectors, precision up to 3x random alarms |
 | Log template mining, LogHub (16 systems) | 0.767 average grouping accuracy, no per-system tuning |
 
-The recorded incidents are a development set. The final evaluation (Milestone 6) uses 20 failure
-types, 6 of them written by someone else and held out until then, plus ablations: single agent vs
-multi-agent, with vs without memory, model vs model.
+The recorded incidents and the 14 public scenarios are a development set. The 6 hidden
+scenarios were written by someone else, converted by a separate agent and never seen by the
+builder; only their totals are published.
 
 ## Tech stack
 

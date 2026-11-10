@@ -366,7 +366,7 @@ investigated the same recording. 12 scenarios are incidents; 2 are not (a traffi
 | **Vigil** (supervisor + specialists, memory, models routed by role) | 12/12 | **11/12** | **11/12** | 1 | 24.7k |
 | Single agent with every tool | 12/12 | 8/12 | 8/12 | 4 | 18.7k |
 | Without memory | 12/12 | 10/12 | 9/12 | 0 | 22.4k |
-| One small model for every role | pending: stopped by the daily quota after 3 scenarios (3/3 right so far) | | | | |
+| One small model for every role (Gemini Flash-Lite, Groq gpt-oss-20b as fallback) | 12/12 | 9/12 | 9/12 | 2 | 26.8k |
 
 Detection is the same in every row (the same detector on the same recording): all 12 incidents,
 a median of 21 s after the fault started, and no false alarms between scenarios or in the two
@@ -384,6 +384,13 @@ interrupt a service for nothing, or the wrong one.
   diagnosis (scenarios 5 and 14): safe, but it fixes nothing. With past incidents to cite, the
   same diagnoses led to the fix. Memory's one
   cost here: Vigil's single unsafe proposal was made with memory.
+- **Routing models by role pays for itself.** With the same small model in every role, Vigil
+  got three incidents wrong, all of them quiet ones: orders saturating its CPU, storefront
+  slightly slow, and the slow storefront leak. Each time it named an error spike in a service
+  that was only feeling the effects (2 unsafe restarts, 1 escalation). It also used *more*
+  tokens than the routed team (26.8k vs 24.7k): a weaker supervisor asked for more rounds of
+  evidence before settling. The first attempt at this run stopped on the free daily quota after
+  3 scenarios and was resumed the next day from where it stopped.
 - **These are single runs on 12 incidents.** Model answers vary from run to run, so a
   difference of one or two scenarios is a hint, not a result; the single-agent gap is the
   clearest.
@@ -400,3 +407,24 @@ also give plain ratios ("2x usual"), and slow leaks need the per-feature detecto
 **Limits.** I wrote these scenarios while building Vigil, so they are a development set. The
 traffic surge did not even raise an alert, so the "not an incident" reasoning was not
 exercised. The six hidden scenarios, written by someone else, are the test (below).
+
+## The hidden test: 6 scenarios written by someone else
+
+| Configuration | Detected | Root cause and kind right | Fix right | No-incident handled | Unsafe proposals | False alarms |
+|---|---|---|---|---|---|---|
+| **Vigil** (full) | 5/5 | **5/5** | **5/5** | 1/1 | 0 | 0 |
+
+**How it was kept honest.** Someone other than the builder described six failures in plain
+English, given only the list of services and the kinds of fault the shop can produce. A separate agent
+with no other context turned that description into the scenario format
+([docs/SCENARIOS.md](SCENARIOS.md)) and checked it; three of the six had to be approximated
+with the faults the shop can inject. It reported back only the count, so I (the builder) never
+saw the scenarios. They were recorded and scored outside the repository with
+`vigil exam run <recording> --hidden`, which turns tracing off and prints only the totals
+above. Nothing in Vigil was changed between the public evaluation and this run, and the
+scenarios, recording and per-scenario results are not published.
+
+**What it shows.** On failures nobody tuned it for, Vigil found the root cause, the kind of
+failure and the right fix every time, left the non-incident alone, and raised no false alarms.
+It is one run on five incidents, so it shows that the public results were not an artefact of
+writing the scenarios and the system together, not that Vigil is perfect.
