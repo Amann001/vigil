@@ -162,10 +162,12 @@ def carry_out(
         "approved_by": approval.get("by"),
         "dry_run": executor.dry_run,
     }
-    if refused := problems(proposal, audit, now):
-        entry |= {"outcome": "refused", "reasons": refused}
-    elif not approval.get("approved"):
+    # The human's decision is recorded first: a proposal the reviewer rejected is "rejected",
+    # even if a guardrail would also have stopped it.
+    if not approval.get("approved"):
         entry |= {"outcome": "rejected", "reasons": [approval.get("notes") or "not approved"]}
+    elif refused := problems(proposal, audit, now):
+        entry |= {"outcome": "refused", "reasons": refused}
     elif not ACTIONS[proposal.action].changes_system:
         entry |= {"outcome": "escalated" if proposal.action == "escalate" else "no action"}
     else:

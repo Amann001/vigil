@@ -124,3 +124,18 @@ def test_no_action_changes_nothing(audit):
     entry = carry_out(proposal, APPROVED, executor, audit, "i1")
 
     assert entry["outcome"] == "no action" and executor.calls == []
+
+
+def test_a_rejection_is_recorded_as_the_reviewers_even_when_a_guardrail_would_also_refuse(audit):
+    carry_out(restart(), APPROVED, RecordingExecutor(), audit, "i1", now=NOW)
+
+    entry = carry_out(
+        restart(),
+        {"approved": False, "notes": "already fixed"},
+        RecordingExecutor(),
+        audit,
+        "i2",
+        now=NOW + pd.Timedelta("5min"),
+    )
+
+    assert entry["outcome"] == "rejected" and entry["reasons"] == ["already fixed"]
