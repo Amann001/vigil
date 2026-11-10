@@ -120,3 +120,52 @@ def test_queue_and_audit_are_readable(setup):
     assert client.get("/health").json() == {"status": "ok", "queue": True}
     assert client.get("/audit").json() == [{"outcome": "executed"}]
     assert client.get("/jobs").json()["counts"] == {"queued": 0}
+
+
+def test_a_running_investigation_is_listed_and_readable_before_its_report_exists(tmp_path):
+    live = tmp_path / "live"
+    live.mkdir()
+    running = {"id": "live-2", "status": "investigating", "alert_at": "2026-11-11T10:00:00+00:00"}
+    (live / "live-2.json").write_text(json.dumps(running | {"events": [{"step": "plan"}]}))
+    client = TestClient(create_app(reports_dir=tmp_path))
+
+    (listed,) = client.get("/investigations").json()
+    (now,) = client.get("/live").json()
+    full = client.get("/investigations/live-2").json()
+
+    assert listed["status"] == "investigating" and now["id"] == "live-2"
+    assert full["events"] == [{"step": "plan"}]
+
+
+def test_the_system_view_is_offline_without_prometheus(tmp_path):
+    client = TestClient(create_app(reports_dir=tmp_path))
+
+    assert client.get("/system").json() == {"online": False}
+
+
+def test_breaking_a_service_from_the_ui_needs_the_token(tmp_path):
+    calls = []
+    app = create_app(
+        token=TOKEN, reports_dir=tmp_path, chaos=lambda s, r: calls.append((s, r)) or {"ok": 1}
+    )
+    client = TestClient(app)
+
+    refused = client.post("/chaos/payments", json={"fault": "crash"})
+    done = client.post("/chaos/payments", json={"fault": "crash"}, headers=AUTH)
+    cleared = client.delete("/chaos/payments", headers=AUTH)
+    unknown = client.post("/chaos/prometheus", json={"fault": "crash"}, headers=AUTH)
+
+    assert refused.status_code == 401 and done.status_code == 200
+    assert cleared.status_code == 200 and unknown.status_code == 422
+    faults = [(s, r.fault if r else None) for s, r in calls]
+    assert faults == [("payments", "crash"), ("payments", None)]
+
+
+def test_the_built_ui_is_served_without_hiding_the_api(tmp_path):
+    ui = tmp_path / "dist"
+    ui.mkdir()
+    (ui / "index.html").write_text("<title>Vigil</title>")
+    client = TestClient(create_app(reports_dir=tmp_path, ui_dir=ui))
+
+    assert "Vigil" in client.get("/").text
+    assert client.get("/health").json()["status"] == "ok"

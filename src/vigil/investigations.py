@@ -29,9 +29,11 @@ from vigil.alerts import Alert
 from vigil.db import direct
 from vigil.evidence import Evidence
 from vigil.memory import Memory
+from vigil.progress import Timeline, follow
 
 DB_PATH = DATA_DIR / "vigil.db"
 REPORTS_DIR = DATA_DIR / "investigations"
+LIVE_DIR = "live"  # under REPORTS_DIR: the timeline of each investigation as it runs
 Verdict = Literal["confirmed", "corrected"]
 # Where checkpoints are kept: a Postgres connection URL, or the path of a SQLite file.
 Store = str | Path
@@ -104,21 +106,35 @@ def investigate(
     traced = tracing.run_config(investigation_id, "investigation")
     if callbacks:  # e.g. token counting in the evaluation
         traced = traced | {"callbacks": traced.get("callbacks", []) + callbacks}
+    timeline = Timeline(
+        reports_dir / LIVE_DIR / f"{investigation_id}.json",
+        {
+            "id": investigation_id,
+            "alert": alert.describe(),
+            "alert_at": alert.detected_at.isoformat(),
+            "signals": alert.to_dict()["signals"],
+            "started_at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
+        },
+    )
     with open_graph(store, mode) as graph:
         pending = graph.get_state(config).next
         resumed = bool(pending) and pending != ("review",)
-        if resumed:
-            # Passing new input would restart the graph and skip the interrupted steps (an
-            # interrupted run lost its second round of questions this way); None continues them.
-            state = graph.invoke(None, config | traced, context=context)
-        else:
-            graph.checkpointer.delete_thread(investigation_id)  # no-op for a new investigation
-            start = {
-                "id": investigation_id,
-                "alert": alert.describe(),
-                "alert_at": alert.detected_at.isoformat(),
-            }
-            state = graph.invoke(start, config | traced, context=context)
+        try:
+            if resumed:
+                # Passing new input would restart the graph and skip the interrupted steps (an
+                # interrupted run lost its second round of questions this way); None continues.
+                state = follow(graph, None, config | traced, context, timeline)
+            else:
+                graph.checkpointer.delete_thread(investigation_id)  # no-op for a new one
+                start = {
+                    "id": investigation_id,
+                    "alert": alert.describe(),
+                    "alert_at": alert.detected_at.isoformat(),
+                }
+                state = follow(graph, start, config | traced, context, timeline)
+        except Exception:
+            timeline.finish("failed")
+            raise
     tracing.flush()
     report = {
         "id": investigation_id,
@@ -133,6 +149,8 @@ def investigate(
         "diagnosis": state["diagnosis"],
         "recalled": [r["id"] for r in state.get("recalled", [])],
         "proposal": state.get("proposal"),
+        "signals": timeline.data["signals"],
+        "timeline": timeline.finish("awaiting review"),
     }
     _write_report(report, reports_dir)
     return report
@@ -166,20 +184,33 @@ def review(
         "at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
     }
     context = Context(None, memory=memory, executor=executor, audit=audit)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    timeline = Timeline(
+        reports_dir / LIVE_DIR / f"{investigation_id}.json",
+        {k: report.get(k) for k in ("id", "alert", "alert_at", "signals")},
+        status="acting",
+        events=report.get("timeline", [])
+        + [{"at": decision["at"], "step": "decision", "review": decision}],
+    )
     with open_graph(store) as graph:
         if graph.get_state(_config(investigation_id)).next != ("review",):
+            timeline.finish(report["status"])
             raise ValueError(f"Investigation {investigation_id!r} is not awaiting review")
         traced = tracing.run_config(investigation_id, "review")
         config = _config(investigation_id) | traced
-        state = graph.invoke(Command(resume=decision), config, context=context)
+        try:
+            state = follow(graph, Command(resume=decision), config, context, timeline)
+        except Exception:
+            timeline.finish("awaiting review")
+            raise
     tracing.flush()
-    report = json.loads(report_path.read_text(encoding="utf-8"))
     report |= {
         "status": verdict,
         "review": decision,
         "action": state.get("action"),
         "incident_report": state.get("report"),
         "models": state.get("models", report["models"]),
+        "timeline": timeline.finish(verdict),
     }
     _write_report(report, reports_dir)
     if report["incident_report"]:
