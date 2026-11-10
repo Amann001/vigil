@@ -10,7 +10,7 @@ from vigil import investigations
 from vigil.agent_eval import EXPECTED_CATEGORY, matching_incident, score
 from vigil.alerts import Alert, AlertDetector, Signal
 from vigil.cli import main as cli
-from vigil.watch import new_alert
+from vigil.watch import Pager, alert_service
 
 ALERT = Alert(pd.Timestamp("2026-11-04T16:32:25Z"), (Signal("payments.up", 0.0, 1.0, 1000.0),))
 DIAGNOSIS = {
@@ -260,14 +260,35 @@ def test_citations_are_scored_against_earlier_incidents_of_the_same_kind():
     assert result["citations_alike"] == result["citations"] == 1
 
 
-def test_watcher_only_raises_alerts_after_the_quiet_period():
+def _watched(columns: list[str]):
     index = pd.date_range("2026-11-04T12:00:00Z", periods=200, freq="5s")
-    features = pd.DataFrame({"latency": 0.1, "rate": 5.0}, index=index)
+    features = pd.DataFrame({c: 0.1 for c in columns}, index=index)
     features.iloc[::7, 0] = 0.11
-    detector = AlertDetector().fit(features)
+    features.iloc[::5, 1] = 0.11
+    return index, features, AlertDetector().fit(features)
+
+
+def test_the_pager_raises_each_alarm_once_and_ignores_older_ones():
+    index, features, detector = _watched(["payments.latency_p95", "inventory.error_ratio"])
     features.iloc[150:, 0] = 2.0  # the incident
 
-    alert = new_alert(detector, features, quiet_until=index[0])
+    alert = Pager(since=index[0]).new_alert(detector, features)
+    pager = Pager(since=index[0])
+    first, again = pager.new_alert(detector, features), pager.new_alert(detector, features)
 
     assert alert is not None and alert.detected_at >= index[150]
-    assert new_alert(detector, features, quiet_until=index[-1]) is None
+    assert first is not None and again is None
+    assert Pager(since=index[-1]).new_alert(detector, features) is None
+
+
+def test_the_pager_does_not_page_twice_for_one_service_but_does_for_another():
+    index, features, detector = _watched(["payments.latency_p95", "inventory.error_ratio"])
+    pager = Pager(since=index[0])
+    features.iloc[100:120, 0] = 2.0  # payments slow ...
+    features.iloc[130:150, 0] = 2.0  # ... briefly better, then slow again: the same incident
+    features.iloc[160:, 1] = 0.9  # after a restart, inventory starts failing: a new one
+
+    paged = [pager.new_alert(detector, features) for _ in range(4)]
+
+    services = [alert_service(a) for a in paged if a is not None]
+    assert services == ["payments", "inventory"]
