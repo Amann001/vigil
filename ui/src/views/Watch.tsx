@@ -70,19 +70,23 @@ function Inbox({ situation, list }: { situation: Situation; list: InvestigationS
   const last = (list ?? []).find((i) => i.status !== "investigating");
   return (
     <Panel as="aside" className="inbox" delay={0.35} label="Incidents needing attention">
-      {running && (
-        <a className="inbox-row is-running" href={href({ page: "incident", id: running.id })}>
-          <span className="pulse" aria-hidden="true" />
-          <span className="inbox-text">
-            <strong>Investigating now</strong>
-            <span>
-              {eventsOf(running).length} steps so far
-              {serviceOf(running) ? `, looking at ${serviceName[serviceOf(running)!]}` : ""}
+      {situation.runningAll.map((inv) => {
+        const steps = eventsOf(inv).length;
+        const service = serviceOf(inv);
+        return (
+          <a key={inv.id} className="inbox-row is-running" href={href({ page: "incident", id: inv.id })}>
+            <span className="pulse" aria-hidden="true" />
+            <span className="inbox-text">
+              <strong>Investigating now</strong>
+              <span>
+                {steps} {steps === 1 ? "step" : "steps"} so far
+                {service ? `, looking at ${serviceName[service]}` : ""}
+              </span>
             </span>
-          </span>
-          <span className="inbox-go">Watch</span>
-        </a>
-      )}
+            <span className="inbox-go">Watch</span>
+          </a>
+        );
+      })}
       {[...situation.pending, ...situation.replays].map((item) => (
         <a key={item.id} className="inbox-row is-pending" href={href({ page: "incident", id: item.id })}>
           <span className="dot dot-sodium" aria-hidden="true" />
@@ -198,42 +202,33 @@ export function Watch({
 }) {
   const { title, line } = useHeadline(situation, system);
   const [breaking, setBreaking] = useState(false);
+  const [legend, setLegend] = useState(false);
   const toneFor = (s: Service) => (situation.focus?.service === s ? situation.focus.tone : "calm");
   return (
     <main className="watch">
       <h1 className="visually-hidden">Vigil war room</h1>
       <Inbox situation={situation} list={list} />
 
-      <Panel as="aside" className="side" delay={0.5} label="Service vitals">
-        <AnimatePresence mode="wait">
-          {selected ? (
-            <Vitals key={selected} service={selected} system={system} tone={toneFor(selected)} />
-          ) : (
-            <motion.div key="legend" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <Legend />
-              <div className="service-picker" role="group" aria-label="Show a service's vitals">
-                {SERVICES.map((s) => (
-                  <button key={s} onClick={() => onSelect(s)} className={`chip tone-${toneFor(s)}`}>
-                    {serviceName[s]}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Vitals appear when a star is chosen, so the sky stays clear the rest of the time. */}
+      <AnimatePresence>
         {selected && (
-          <button className="link-button" onClick={() => onSelect(null)}>
-            Show all services
-          </button>
+          <Panel key="side" as="aside" className="side" label="Service vitals">
+            <AnimatePresence mode="wait">
+              <Vitals key={selected} service={selected} system={system} tone={toneFor(selected)} />
+            </AnimatePresence>
+            <button className="link-button" onClick={() => onSelect(null)}>
+              Close
+            </button>
+          </Panel>
         )}
-      </Panel>
+      </AnimatePresence>
 
       <section className={`status status-${situation.kind}`} aria-live="polite">
         <h2 className="status-title">
           <RisingText key={title} text={title} />
         </h2>
         <motion.p
-          key={line}
+          key={title}
           className="status-line"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -266,9 +261,43 @@ export function Watch({
       </section>
 
       <div className="corner">
-        <button className="button button-ghost" onClick={() => setBreaking(true)} disabled={mode !== "live"} title={mode === "live" ? undefined : "Needs a running shop"}>
-          Break something
-        </button>
+        <AnimatePresence>
+          {legend && (
+            <Panel key="legend" className="legend-panel" label="How to read the sky">
+              <Legend />
+              <div className="service-picker" role="group" aria-label="Show a service's vitals">
+                {SERVICES.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      onSelect(s);
+                      setLegend(false);
+                    }}
+                    className={`chip tone-${toneFor(s)}`}
+                  >
+                    {serviceName[s]}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+          )}
+        </AnimatePresence>
+        <div className="corner-buttons">
+          <button className="button button-ghost" aria-expanded={legend} onClick={() => setLegend(!legend)}>
+            {legend ? "Close" : "How to read the sky"}
+          </button>
+          {mode !== "demo" && (
+            <button className="button button-ghost" onClick={() => setBreaking(true)} disabled={mode !== "live"}>
+              Break something
+            </button>
+          )}
+        </div>
+        {mode === "demo" && (
+          <p className="replay-note">
+            A replay of a real incident, recorded from Vigil's API. Run Vigil on your machine to break the shop
+            yourself.
+          </p>
+        )}
       </div>
       <AnimatePresence>{breaking && <BreakSomething onClose={() => setBreaking(false)} />}</AnimatePresence>
     </main>

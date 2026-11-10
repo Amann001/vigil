@@ -348,7 +348,9 @@ function CameraRig({ target, distance }: { target: Service | null; distance: num
   const goal = useRef(new THREE.Vector3());
   useFrame((_, delta) => {
     if (!controls) return;
-    const wanted = target ? POSITIONS[target] : new THREE.Vector3(0, 0, 0);
+    // With nothing focused, aim below and left of the middle, so the stars sit above the headline
+    // and clear of the inbox in the top left corner.
+    const wanted = target ? POSITIONS[target] : new THREE.Vector3(-0.5, -0.8, 0);
     goal.current.lerp(wanted, 1 - Math.exp(-delta * 1.8));
     controls.target.copy(goal.current);
     const offset = camera.position.clone().sub(controls.target);

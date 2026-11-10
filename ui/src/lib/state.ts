@@ -56,6 +56,7 @@ export interface Situation {
   focus: Focus | null;
   agents: string[];
   running: Investigation | null;
+  runningAll: Investigation[];
   pending: InvestigationSummary[];
   replays: InvestigationSummary[];
   recent: InvestigationSummary | null;
@@ -74,7 +75,9 @@ export function situation(
   const waiting = (list ?? []).filter((i) => i.status === "awaiting review");
   const pending = waiting.filter((i) => i.id.startsWith("live-"));
   const replays = waiting.filter((i) => !i.id.startsWith("live-"));
-  const running = (live ?? []).find((i) => i.status === "investigating" || i.status === "acting") ?? null;
+  const runningAll = (live ?? []).filter((i) => i.status === "investigating" || i.status === "acting");
+  // The newest running investigation is the one the sky shows.
+  const running = runningAll[0] ?? null;
   const down = SERVICES.find((s) => system?.online && system.services?.[s]?.latest.up === null);
   if (running) {
     const service = serviceOf(running) ?? down ?? null;
@@ -83,6 +86,7 @@ export function situation(
       focus: service ? { service, tone: down === service ? "flare" : "sodium" } : null,
       agents: activeAgents(running),
       running,
+      runningAll,
       pending,
       replays,
       recent: null,
@@ -96,6 +100,7 @@ export function situation(
       focus: service ? { service, tone: down === service ? "flare" : "sodium" } : null,
       agents: [],
       running: null,
+      runningAll,
       pending,
       replays,
       recent: null,
@@ -106,10 +111,10 @@ export function situation(
   );
   if (recent && isService(recent.proposal?.service ?? recent.root_cause_service)) {
     const service = (recent.proposal?.service ?? recent.root_cause_service) as Service;
-    return { kind: "recovered", focus: { service, tone: "aurora" }, agents: [], running: null, pending, replays, recent };
+    return { kind: "recovered", focus: { service, tone: "aurora" }, agents: [], running: null, runningAll, pending, replays, recent };
   }
   if (system && !system.online) {
-    return { kind: "offline", focus: null, agents: [], running: null, pending, replays, recent: null };
+    return { kind: "offline", focus: null, agents: [], running: null, runningAll, pending, replays, recent: null };
   }
-  return { kind: "quiet", focus: down ? { service: down, tone: "flare" } : null, agents: [], running: null, pending, replays, recent: null };
+  return { kind: "quiet", focus: down ? { service: down, tone: "flare" } : null, agents: [], running: null, runningAll, pending, replays, recent: null };
 }

@@ -143,9 +143,11 @@ export function Decision({ investigation, mode }: { investigation: Investigation
         {state.kind === "sending" ? "Sending…" : action}
       </button>
       <p className="guardrail-note">
-        {verdict === null
-          ? "Answer both questions to continue."
-          : "A worker carries it out. Restarts are limited to one per service every 15 minutes, and every decision is written to the audit log."}
+        {mode === "demo"
+          ? "This is a replay: your decision is not sent anywhere. The recording goes on with what the real reviewer decided."
+          : verdict === null
+            ? "Answer both questions to continue."
+            : "A worker carries it out. Restarts are limited to one per service every 15 minutes, and every decision is written to the audit log."}
       </p>
       {state.kind === "error" && (
         <p className="decision-error" role="alert">

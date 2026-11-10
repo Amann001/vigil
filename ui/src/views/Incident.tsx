@@ -301,7 +301,8 @@ export function Incident({
       </Panel>
 
       <Panel as="aside" className="dock" delay={0.25} label="Your decision">
-        {investigation && <Decision investigation={investigation} mode={mode} />}
+        {/* Keyed by status: the choices start afresh once there is a proposal to decide on. */}
+        {investigation && <Decision key={investigation.status} investigation={investigation} mode={mode} />}
         {investigation && <Team investigation={investigation} />}
       </Panel>
     </main>

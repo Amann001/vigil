@@ -47,7 +47,7 @@ export function useMode(): "live" | "demo" | "unknown" {
 }
 
 async function get<T>(path: string): Promise<T> {
-  if ((await detectMode()) === "demo") return demo.get(path) as T;
+  if ((await detectMode()) === "demo") return (await demo.get(path)) as T;
   const response = await fetch(path, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new ApiError(response.status, await errorText(response));
   return response.json();
