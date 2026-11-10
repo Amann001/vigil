@@ -13,6 +13,12 @@
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  transition: opacity 1.2s ease 0.4s;
+}
+
+.star-labels.is-hidden {
+  opacity: 0;
+  transition: none;
 }
 
 .star-label {

@@ -165,6 +165,9 @@ class Player {
         if (found) return shifted(found, ms);
       }
       if (this.tape.details0[id]) return shifted(this.tape.details0[id], ms);
+      // Opened by a link before the replay has reached it: show how it ended.
+      const later = this.tape.frames.findLast((f) => f.details?.[id])?.details?.[id];
+      if (later) return shifted(later, ms);
       throw new Error(`No investigation ${id}`);
     }
     throw new Error(`Not in the replay: ${path}`);

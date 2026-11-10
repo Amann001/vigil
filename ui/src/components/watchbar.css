@@ -200,3 +200,18 @@
     padding: 7px 9px;
   }
 }
+
+@media (max-width: 480px) {
+  .mode {
+    display: none;
+  }
+
+  .brand-word {
+    font-size: 19px;
+  }
+
+  .pages a {
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+}

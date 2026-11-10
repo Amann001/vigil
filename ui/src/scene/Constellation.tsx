@@ -342,7 +342,7 @@ function LabelTracker({ labels }: { labels: LabelRefs }) {
 }
 
 /** Eases the camera towards the focused star, and back to the whole sky when nothing is. */
-function CameraRig({ target, distance }: { target: Service | null; distance: number }) {
+function CameraRig({ target, distance, slow }: { target: Service | null; distance: number; slow: boolean }) {
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
   const goal = useRef(new THREE.Vector3());
@@ -355,7 +355,9 @@ function CameraRig({ target, distance }: { target: Service | null; distance: num
     controls.target.copy(goal.current);
     const offset = camera.position.clone().sub(controls.target);
     const want = target ? distance * 0.62 : distance;
-    offset.setLength(THREE.MathUtils.lerp(offset.length(), want, 1 - Math.exp(-delta * 1.4)));
+    // The opening flight from deep space is slower, so it reads as a journey.
+    const rate = slow ? 0.55 : 1.4;
+    offset.setLength(THREE.MathUtils.lerp(offset.length(), want, 1 - Math.exp(-delta * rate)));
     camera.position.copy(controls.target).add(offset);
     controls.update();
   });
@@ -364,6 +366,8 @@ function CameraRig({ target, distance }: { target: Service | null; distance: num
 
 export interface ConstellationProps {
   labels?: LabelRefs;
+  /** Start far out in space and travel in: the opening of a first visit. */
+  fromAfar?: boolean;
   system: SystemView | null;
   focus: Focus | null;
   agents: string[];
@@ -373,10 +377,13 @@ export interface ConstellationProps {
   onHover?: (s: Service | null) => void;
 }
 
-function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, labels }: ConstellationProps) {
+function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, labels, fromAfar }: ConstellationProps) {
   const glow = useGlowTexture();
   const { size } = useThree();
-  const distance = size.width / size.height < 1 ? 15 : 9.5;
+  // Far enough that the whole constellation (about 9 units wide) fits the screen's width: a
+  // phone held upright needs the camera much further back than a laptop.
+  const aspect = size.width / size.height;
+  const distance = Math.max(9.5, 4.8 / (Math.tan(THREE.MathUtils.degToRad(20)) * aspect));
   const hotEdges = new Set(
     focus && focus.tone !== "aurora"
       ? EDGES.filter(([a, b]) => a === focus.service || b === focus.service).map(([a, b]) => `${a}-${b}`)
@@ -414,7 +421,7 @@ function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, l
         minPolarAngle={Math.PI * 0.3}
         maxPolarAngle={Math.PI * 0.62}
       />
-      <CameraRig target={cameraOn} distance={distance} />
+      <CameraRig target={cameraOn} distance={distance} slow={Boolean(fromAfar)} />
       {labels && <LabelTracker labels={labels} />}
       <EffectComposer multisampling={0}>
         <Bloom intensity={1.15} luminanceThreshold={0.18} luminanceSmoothing={0.3} mipmapBlur radius={0.72} />
@@ -424,9 +431,9 @@ function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, l
   );
 }
 
-function Labels({ system, focus, selected, labels }: ConstellationProps & { labels: LabelRefs }) {
+function Labels({ system, focus, selected, labels, fromAfar }: ConstellationProps & { labels: LabelRefs }) {
   return (
-    <div className="star-labels">
+    <div className={`star-labels${fromAfar ? " is-hidden" : ""}`}>
       {SERVICES.map((service) => {
         const latest = system?.services?.[service]?.latest;
         const down = Boolean(system?.online && latest && latest.up === null);
@@ -453,7 +460,7 @@ export function Constellation(props: ConstellationProps) {
     <div className="constellation" aria-hidden="true">
       <Canvas
         dpr={[1, 1.75]}
-        camera={{ position: [0, 0.9, 9.5], fov: 40 }}
+        camera={{ position: props.fromAfar ? [0, 9, 48] : [0, 0.9, 9.5], fov: 40 }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         onPointerMissed={() => props.onSelect(null)}
       >

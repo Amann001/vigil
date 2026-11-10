@@ -1,0 +1,37 @@
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  cursor: pointer;
+  /* Transparent in the middle, so the stars rushing in show through the name. */
+  background: radial-gradient(60% 50% at 50% 50%, rgb(4 7 20 / 0.15), rgb(4 7 20 / 0.85));
+}
+
+.intro-word {
+  font-size: clamp(5rem, 19vw, 15rem);
+  font-weight: 640;
+  font-stretch: 76%;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+  color: var(--starlight);
+  /* On the whole word: a text-shadow on each letter would be clipped by its rising mask. */
+  filter: drop-shadow(0 0 36px rgb(143 183 255 / 0.4));
+}
+
+.intro-line {
+  font-size: var(--step-2);
+  color: var(--haze);
+  text-align: center;
+  padding: 0 16px;
+}
+
+.intro-skip {
+  position: absolute;
+  bottom: 28px;
+  font-size: var(--step--1);
+  color: var(--dim);
+}

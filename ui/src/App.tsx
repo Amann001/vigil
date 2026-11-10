@@ -1,5 +1,6 @@
 import { AnimatePresence, MotionConfig } from "motion/react";
 import { lazy, Suspense, useMemo, useState } from "react";
+import { Intro, introSeen } from "./components/Intro";
 import { WatchBar } from "./components/WatchBar";
 import { api, useMode, usePoll } from "./lib/api";
 import { useRoute } from "./lib/route";
@@ -23,6 +24,7 @@ export function App() {
   const live = usePoll(api.live, 1500, mode).data;
   const [selected, setSelected] = useState<Service | null>(null);
   const [hovered, setHovered] = useState<Service | null>(null);
+  const [intro, setIntro] = useState(() => !introSeen());
 
   const now = situation(system, live, list);
   const open = route.page === "incident" ? route.id : null;
@@ -64,11 +66,13 @@ export function App() {
           cameraOn={cameraOn}
           onSelect={setSelected}
           onHover={setHovered}
+          fromAfar={intro}
         />
       </Suspense>
+      <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
       <WatchBar route={route} system={system} mode={mode} situation={now} />
       <AnimatePresence mode="wait">
-        {route.page === "watch" && (
+        {!intro && route.page === "watch" && (
           <Watch
             key="watch"
             system={system}
