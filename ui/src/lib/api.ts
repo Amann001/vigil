@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AuditEntry, Investigation, InvestigationSummary, Service, SystemView } from "./types";
+import type { AuditEntry, Config, Health, Investigation, InvestigationSummary, Service, SystemView } from "./types";
 import { demo } from "./demo";
 
 /**
@@ -107,6 +107,8 @@ export const api = {
   investigation: (id: string) => get<Investigation>(`/investigations/${encodeURIComponent(id)}`),
   live: () => get<Investigation[]>("/live"),
   audit: () => get<AuditEntry[]>("/audit"),
+  config: () => get<Config>("/config"),
+  health: () => get<Health>("/health"),
   review: (id: string, decision: ReviewDecision) =>
     send("POST", `/investigations/${encodeURIComponent(id)}/review`, decision),
   breakService: (service: Service, fault: Record<string, unknown>) =>

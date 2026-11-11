@@ -1,20 +1,26 @@
 import { AnimatePresence, MotionConfig } from "motion/react";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { CommandPalette } from "./components/CommandPalette";
 import { Intro, introSeen } from "./components/Intro";
 import { WatchBar } from "./components/WatchBar";
 import { api, useMode, usePoll } from "./lib/api";
+import { useDecisionNotifications } from "./lib/notify";
+import { useSoundCues, useSoundStart } from "./lib/sound";
 import { go, href, type Route, useRoute } from "./lib/route";
 import { serviceOf, situation } from "./lib/state";
 import type { Service } from "./lib/types";
 import { serviceName } from "./lib/words";
 import type { View } from "./scene/Constellation";
+import { Audit } from "./views/Audit";
 import { History } from "./views/History";
 import { Home } from "./views/Home";
 import { HowItWorks } from "./views/HowItWorks";
 import { Incident } from "./views/Incident";
 import { Lost } from "./views/Lost";
+import { Policy } from "./views/Policy";
 import { Scores } from "./views/Scores";
 import { ServicePage } from "./views/ServicePage";
+import { Status } from "./views/Status";
 import { Watch } from "./views/Watch";
 import "./styles/app.css";
 
@@ -38,6 +44,12 @@ function titleOf(route: Route): string {
       return "How it works | Vigil";
     case "scores":
       return "Results | Vigil";
+    case "status":
+      return "Status | Vigil";
+    case "audit":
+      return "Audit log | Vigil";
+    case "policy":
+      return "Policy | Vigil";
     case "lost":
       return "Lost in space | Vigil";
   }
@@ -65,6 +77,11 @@ export function App() {
     document.title = titleOf(route);
     setHovered(null);
   }, [route]);
+
+  const pageKey = route.page === "incident" ? `incident/${route.id}` : route.page === "service" ? `service/${route.service}` : route.page;
+  useSoundStart();
+  useSoundCues(now.kind, pageKey);
+  useDecisionNotifications(now.pending, mode === "live");
 
   const incidentService = route.page === "incident" ? serviceOf(openInvestigation) : null;
   const view: View =
@@ -103,7 +120,8 @@ export function App() {
           agents={now.agents}
           selected={hovered}
           view={view}
-          dim={["history", "how", "scores", "lost"].includes(route.page) || (route.page === "home" && pastHero)}
+          dim={["history", "how", "scores", "lost", "status", "audit", "policy"].includes(route.page) || (route.page === "home" && pastHero)}
+          warp={pageKey}
           onSelect={(service) => service && go({ page: "service", service })}
           onHover={setHovered}
           linkTo={(service) => href({ page: "service", service })}
@@ -112,6 +130,7 @@ export function App() {
       </Suspense>
       <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
       <WatchBar route={route} system={system} mode={mode} situation={now} />
+      <CommandPalette list={list} mode={mode} />
       <AnimatePresence mode="wait">
         {!intro && route.page === "home" && <Home key="home" situation={now} system={system} onPastHero={setPastHero} />}
         {!intro && route.page === "watch" && (
@@ -140,6 +159,9 @@ export function App() {
         {route.page === "history" && <History key="history" list={list} />}
         {route.page === "how" && <HowItWorks key="how" list={list} />}
         {route.page === "scores" && <Scores key="scores" />}
+        {route.page === "status" && <Status key="status" system={system} situation={now} list={list} mode={mode} />}
+        {route.page === "audit" && <Audit key="audit" mode={mode} />}
+        {route.page === "policy" && <Policy key="policy" mode={mode} />}
         {route.page === "lost" && <Lost key="lost" />}
       </AnimatePresence>
     </MotionConfig>

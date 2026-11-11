@@ -121,3 +121,50 @@
     display: none;
   }
 }
+
+.reliability {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.by-service {
+  display: grid;
+  gap: 6px;
+}
+
+.by-service-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--step--1);
+  color: var(--haze);
+}
+
+.by-service-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(232 237 255 / 0.06);
+  overflow: hidden;
+}
+
+.by-service-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgb(143 183 255 / 0.5), #8fb7ff);
+}
+
+.by-service-row .num {
+  text-align: right;
+}
+
+.history-filters {
+  margin-bottom: 18px;
+}
+
+.chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

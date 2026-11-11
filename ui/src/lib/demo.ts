@@ -1,5 +1,5 @@
 import { setClock } from "./clock";
-import type { Investigation, InvestigationSummary, SystemView } from "./types";
+import type { AuditEntry, Config, Investigation, InvestigationSummary, SystemView } from "./types";
 
 /**
  * The public replay: a recording of what the war room fetched from Vigil's API during a real
@@ -29,7 +29,25 @@ interface Tape {
   recorded_at: string;
   system0: SystemView;
   details0: Record<string, Investigation>;
+  config?: Config;
   frames: Frame[];
+}
+
+/** A moment in the recording worth jumping to. */
+export interface Marker {
+  t: number;
+  label: string;
+}
+
+/** What the replay controls show and change. */
+export interface ReplayState {
+  position: number;
+  start: number;
+  end: number;
+  paused: boolean;
+  speed: number;
+  waiting: boolean; // held at the review, waiting for the viewer's decision
+  markers: Marker[];
 }
 
 const WINDOW = 120; // ten minutes of 5-second readings
@@ -59,14 +77,60 @@ class Player {
   private loopStarted = Date.now(); // the wall clock when this loop of the replay began
   private holdStarted: number | null = null;
   private decided = false;
+  private paused = false;
+  private speed = 1; // the viewer's choice, on top of the replay's own pace
   private readonly start: number;
   private readonly reviewAt: number | null;
   private readonly end: number;
+  readonly markers: Marker[];
 
   constructor(private tape: Tape) {
     this.start = Date.parse(tape.recorded_at);
     this.end = tape.frames.at(-1)?.t ?? 0;
     this.reviewAt = this.findReview();
+    this.markers = this.findMarkers();
+  }
+
+  /** The story's turning points, read from the tape itself. */
+  private findMarkers(): Marker[] {
+    const first = (test: (f: Frame) => boolean) => this.tape.frames.find(test)?.t;
+    const statuses = (f: Frame) => Object.values(f.details ?? {}).map((i) => i.status);
+    const found: [number | undefined | null, string][] = [
+      [START_AT, "All quiet"],
+      [first((f) => (f.live ?? []).some((i) => i.status === "investigating")), "Alert"],
+      [first((f) => statuses(f).includes("awaiting review")), "Diagnosis"],
+      [first((f) => Object.values(f.details ?? {}).some((i) => i.action?.outcome === "executed")), "Fixed"],
+    ];
+    return found.flatMap(([t, label]) => (t === undefined || t === null ? [] : [{ t, label }]));
+  }
+
+  state(): ReplayState {
+    return {
+      position: this.position,
+      start: START_AT,
+      end: this.end,
+      paused: this.paused,
+      speed: this.speed,
+      waiting: this.holdStarted !== null && !this.decided,
+      markers: this.markers,
+    };
+  }
+
+  seek(t: number) {
+    this.position = Math.min(Math.max(t, START_AT), this.end);
+    // Before the decision the replay waits for the viewer again; after it, it has been made.
+    this.decided = this.reviewAt !== null && this.position >= this.reviewAt;
+    this.holdStarted = null;
+    this.lastTick = performance.now();
+  }
+
+  setPaused(paused: boolean) {
+    this.paused = paused;
+    this.lastTick = performance.now();
+  }
+
+  setSpeed(speed: number) {
+    this.speed = speed;
   }
 
   /** The first moment the recorded reviewer's decision shows on the tape. */
@@ -95,8 +159,9 @@ class Player {
     const now = performance.now();
     const dt = Math.min((now - this.lastTick) / 1000, 2);
     this.lastTick = now;
+    if (this.paused) return;
     const working = (this.latest("live") ?? []).some((i) => i.status === "investigating" || i.status === "acting");
-    const speed = working ? 3 : 2;
+    const speed = (working ? 3 : 2) * this.speed;
     let next = this.position + dt * speed;
     if (this.reviewAt !== null && !this.decided && next >= this.reviewAt) {
       this.holdStarted ??= now;
@@ -159,6 +224,44 @@ class Player {
     return shifted({ online: true, times, services, edges, score } as SystemView, this.offset());
   }
 
+  /** An investigation as it stood at this point of the recording. */
+  private detailsNow(id: string): Investigation | undefined {
+    const frames = this.frames();
+    for (let i = frames.length - 1; i >= 0; i--) {
+      const found = frames[i].details?.[id];
+      if (found) return found;
+    }
+    return this.tape.details0[id];
+  }
+
+  /** The recording's lists predate the decision and action times in the API's list, so they
+   *  are filled in from the full investigations. */
+  private withTimes(item: InvestigationSummary): InvestigationSummary {
+    if (item.decided_at !== undefined) return item;
+    const full = this.detailsNow(item.id);
+    return {
+      ...item,
+      affected_services: full?.diagnosis?.affected_services ?? [],
+      decided_at: full?.review?.at ?? null,
+      decided_by: full?.review?.by ?? null,
+      acted_at: full?.action?.at ?? null,
+    };
+  }
+
+  /** The audit log as it stood: every decision about an action the recording has reached. */
+  private audit(): AuditEntry[] {
+    const ids = new Set([
+      ...Object.keys(this.tape.details0),
+      ...this.frames().flatMap((f) => Object.keys(f.details ?? {})),
+    ]);
+    return [...ids]
+      .flatMap((id) => {
+        const action = this.detailsNow(id)?.action;
+        return action ? [{ ...action, incident: id } as AuditEntry] : [];
+      })
+      .sort((a, b) => b.at.localeCompare(a.at));
+  }
+
   get(path: string): unknown {
     this.tick();
     const ms = this.offset();
@@ -166,17 +269,19 @@ class Player {
     if (path === "/live") return shifted(this.latest("live") ?? [], ms);
     // A development replay left waiting for review would sit in the inbox through the whole
     // story; the public replay is about the one live incident, so it is left out.
-    if (path === "/investigations") return shifted((this.latest("list") ?? []).filter(onStage), ms);
-    if (path === "/audit") return [];
+    if (path === "/investigations")
+      return shifted((this.latest("list") ?? []).filter(onStage).map((item) => this.withTimes(item)), ms);
+    if (path === "/audit") return shifted(this.audit(), ms);
+    if (path === "/health") return { status: "ok", version: "replay", queue: false, reviews: false };
+    if (path === "/config") {
+      if (!this.tape.config) throw new Error("This recording has no policy");
+      return this.tape.config;
+    }
     const match = path.match(/^\/investigations\/(.+)$/);
     if (match) {
       const id = decodeURIComponent(match[1]);
-      const frames = this.frames();
-      for (let i = frames.length - 1; i >= 0; i--) {
-        const found = frames[i].details?.[id];
-        if (found) return shifted(found, ms);
-      }
-      if (this.tape.details0[id]) return shifted(this.tape.details0[id], ms);
+      const found = this.detailsNow(id);
+      if (found) return shifted(found, ms);
       // Opened by a link before the replay has reached it: show how it ended.
       const later = this.tape.frames.findLast((f) => f.details?.[id])?.details?.[id];
       if (later) return shifted(later, ms);
@@ -201,6 +306,22 @@ function load(): Promise<Player> {
     });
   return player;
 }
+
+/** The replay's controls, for the timeline under the war room. */
+export const replay = {
+  async state(): Promise<ReplayState> {
+    return (await load()).state();
+  },
+  async seek(t: number) {
+    (await load()).seek(t);
+  },
+  async setPaused(paused: boolean) {
+    (await load()).setPaused(paused);
+  },
+  async setSpeed(speed: number) {
+    (await load()).setSpeed(speed);
+  },
+};
 
 export const demo = {
   async get(path: string): Promise<unknown> {

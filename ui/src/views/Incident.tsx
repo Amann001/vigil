@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Panel, RisingText, Sparkline } from "../components/Bits";
 import { Decision } from "../components/Decision";
+import { ReplayBar } from "../components/ReplayBar";
 import { Markdown } from "../components/Markdown";
 import { buildLog, type LogItem, STAGES, stageReached } from "../lib/log";
 import { href } from "../lib/route";
@@ -11,6 +12,7 @@ import {
   agentName,
   agentRole,
   clock,
+  duration,
   formatValue,
   headline,
   outcomeName,
@@ -27,6 +29,80 @@ function offset(at: string | undefined, start: string | undefined): string | nul
   if (!at || !start) return null;
   const s = Math.max(0, Math.round((new Date(at).getTime() - new Date(start).getTime()) / 1000));
   return `+${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** When it happened and how long each stage took: the numbers a postmortem starts from. */
+function Timings({ investigation: inv }: { investigation: Investigation }) {
+  const after = (iso: string | undefined) =>
+    iso ? duration((Date.parse(iso) - Date.parse(inv.alert_at)) / 1000) : null;
+  // A replayed incident was decided long after its recorded alert, so only its diagnosis time means anything.
+  const live = inv.id.startsWith("live-");
+  const decided = live ? after(inv.review?.at) : null;
+  const fixed = live && inv.action?.outcome === "executed" ? after(inv.action.at) : null;
+  return (
+    <p className="story-meta">
+      <span>Alert at {clock(inv.alert_at)}</span>
+      {inv.seconds ? <span>Diagnosed in {duration(inv.seconds)}</span> : null}
+      {decided && <span>Decided {decided} after the alert</span>}
+      {fixed && <span className="meta-good">Fixed {fixed} after the alert</span>}
+      {inv.action?.outcome && !fixed && <span>{outcomeName(inv.action.outcome, inv.action.dry_run)}</span>}
+    </p>
+  );
+}
+
+/** The whole investigation as a Markdown file, to paste into a postmortem or a ticket. */
+function asMarkdown(inv: Investigation, title: string): string {
+  const d = diagnosisOf(inv);
+  const lines = [
+    `# ${title}`,
+    "",
+    `- Incident: ${inv.id}`,
+    `- Alert: ${inv.alert_at}`,
+    `- Status: ${statusName[inv.status]}`,
+  ];
+  if (inv.seconds) lines.push(`- Diagnosed in: ${duration(inv.seconds)}`);
+  if (d) lines.push(`- Root cause: ${serviceName[d.root_cause_service] ?? d.root_cause_service}, ${d.category.replace(/_/g, " ")}, ${d.confidence} confidence`);
+  if (inv.proposal) lines.push(`- Proposed fix: ${proposalName(inv.proposal)}`);
+  if (inv.review) lines.push(`- Decision: ${inv.review.verdict} by ${inv.review.by} at ${inv.review.at}${inv.review.approve ? ", fix approved" : ""}`);
+  if (inv.action) lines.push(`- Action: ${outcomeName(inv.action.outcome, inv.action.dry_run) || inv.action.outcome} at ${inv.action.at}`);
+  if (d) lines.push("", "## Diagnosis", "", d.summary, "", "### Evidence", "", ...d.evidence.map((e) => `- ${e}`));
+  if (inv.signals?.length) {
+    lines.push("", "## Signals at the alert", "");
+    for (const s of inv.signals) lines.push(`- ${signalName(s.feature)}: ${formatValue(s.feature, s.value)} (usually ${formatValue(s.feature, s.usual)})`);
+  }
+  if (inv.incident_report) lines.push("", "## Incident report", "", inv.incident_report);
+  return lines.join("\n") + "\n";
+}
+
+function Share({ investigation, title }: { investigation: Investigation; title: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked: the address bar still has the link */
+    }
+  };
+  const download = () => {
+    const blob = new Blob([asMarkdown(investigation, title)], { type: "text/markdown" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${investigation.id}.md`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+  return (
+    <div className="share" role="group" aria-label="Share this incident">
+      <button className="link-button" onClick={copy}>
+        {copied ? "Link copied" : "Copy link"}
+      </button>
+      <button className="link-button" onClick={download}>
+        Download report
+      </button>
+    </div>
+  );
 }
 
 /** How far a reading is from usual, in words: "6.6× usual", "half of usual". */
@@ -298,9 +374,12 @@ export function Incident({
   return (
     <main className="incident">
       <Panel className="story" label="What happened">
-        <a className="back" href={href({ page: "history" })}>
-          Incidents
-        </a>
+        <div className="story-top">
+          <a className="back" href={href({ page: "history" })}>
+            Incidents
+          </a>
+          {investigation && <Share investigation={investigation} title={title} />}
+        </div>
         {!investigation ? (
           <p className="loading">Opening {id}…</p>
         ) : (
@@ -310,11 +389,7 @@ export function Incident({
               <h1 className="story-title">
                 <RisingText key={title} text={`${title}.`} />
               </h1>
-              <p className="story-meta">
-                Alert at {clock(investigation.alert_at)}
-                {investigation.seconds ? `, diagnosed in ${Math.round(investigation.seconds)} s` : ""}
-                {investigation.action?.outcome ? `. ${outcomeName(investigation.action.outcome, investigation.action.dry_run)}.` : "."}
-              </p>
+              <Timings investigation={investigation} />
             </header>
             <Route reached={stageReached(items, investigation.status)} running={running} />
             <ol className="log" ref={logRef}>
@@ -351,6 +426,7 @@ export function Incident({
           {/* Keyed by status: the choices start afresh once there is a proposal to decide on. */}
           <Decision key={investigation.status} investigation={investigation} mode={mode} />
           <Recovery investigation={investigation} system={system} />
+          {mode === "demo" && <ReplayBar />}
           <Team investigation={investigation} />
         </Panel>
       )}

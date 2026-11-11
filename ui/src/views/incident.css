@@ -81,8 +81,32 @@
 }
 
 .story-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   color: var(--haze);
   font-size: var(--step--1);
+}
+
+.meta-good {
+  color: var(--aurora);
+}
+
+.story-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 24px 14px;
+}
+
+.story-top .back {
+  margin: 0;
+}
+
+.share {
+  display: flex;
+  gap: 14px;
 }
 
 /* The route: where the investigation has got to. */

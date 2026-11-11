@@ -109,6 +109,28 @@ export interface InvestigationSummary {
   proposal?: Proposal | null;
   seconds?: number;
   outcome?: string | null;
+  affected_services?: string[];
+  decided_at?: string | null;
+  decided_by?: string | null;
+  acted_at?: string | null;
+}
+
+/** GET /health: the version and what is switched on. */
+export interface Health {
+  status: string;
+  version: string;
+  queue: boolean;
+  reviews: boolean;
+}
+
+/** Vigil's operating policy, from GET /config. */
+export interface Config {
+  actions: { name: string; description: string; changes_system: boolean; needs_service: boolean }[];
+  guardrails: { approval_required: boolean; restart_cooldown_minutes: number; audit_log: boolean };
+  models: Record<string, string[]>;
+  detector: { method: string; quantile: number; points_in_a_row: number; every_seconds: number };
+  reviews_enabled: boolean;
+  queue: boolean;
 }
 
 export interface ServiceView {

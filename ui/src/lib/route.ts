@@ -10,6 +10,9 @@ import { SERVICES, type Service } from "./types";
  *   /services/<name>     one service of the shop
  *   /how-it-works        the agent team
  *   /results             the evaluation
+ *   /status              each service's health now, for anyone who depends on the shop
+ *   /audit               every decision about an action, for whoever answers for them
+ *   /policy              what Vigil may do, who approves it and what runs it
  *
  * Pages change without reloading (the 3D sky stays and the camera flies to the new page), so
  * links are plain <a href> elements and a single click handler turns them into navigation.
@@ -22,6 +25,9 @@ export type Route =
   | { page: "service"; service: Service }
   | { page: "how" }
   | { page: "scores" }
+  | { page: "status" }
+  | { page: "audit" }
+  | { page: "policy" }
   | { page: "lost" };
 
 // Where the site lives: "" at the root, "/vigil-demo" on GitHub Pages.
@@ -45,6 +51,10 @@ export function parse(pathname: string): Route {
       return { page: "how" };
     case "results":
       return { page: "scores" };
+    case "status":
+    case "audit":
+    case "policy":
+      return { page };
     default:
       return { page: "lost" };
   }
@@ -68,6 +78,10 @@ export function href(route: Route): string {
         return "/how-it-works";
       case "scores":
         return "/results";
+      case "status":
+      case "audit":
+      case "policy":
+        return `/${route.page}`;
     }
   })();
   return `${BASE}${path}`;

@@ -408,7 +408,7 @@ export type View =
   | { kind: "wide" | "hero" | "far" }
   | { kind: "star"; service: Service; side?: "middle" | "right" };
 
-const WIDE_AIM = new THREE.Vector3(-0.5, -0.8, 0);
+const WIDE_AIM = new THREE.Vector3(0.1, -0.95, 0);
 const SWAY = 0.38; // radians either side of facing the shop
 const CENTRE = new THREE.Vector3(0, 0.2, 0);
 const PHONE_HERO_AIM = new THREE.Vector3(0, -4.6, 0); // aiming low puts the stars near the top
@@ -425,7 +425,7 @@ function aimOf(view: View, aspect: number): { point: THREE.Vector3; zoom: number
         ? { point: POSITIONS[view.service], zoom: 0.56, shift: -1.7 }
         : { point: POSITIONS[view.service], zoom: 0.62, shift: 0 };
     default:
-      return { point: WIDE_AIM, zoom: 1, shift: 0 };
+      return { point: WIDE_AIM, zoom: 1.12, shift: 0 };
   }
 }
 
@@ -482,6 +482,36 @@ function CameraRig({ view, distance, slow }: { view: View; distance: number; slo
   return null;
 }
 
+const BASE_FOV = 40;
+const WARP_FOV = 20; // degrees the view widens at the height of a page change
+const WARP_SECONDS = 1.1;
+
+/**
+ * The jump between pages: the field of view widens and snaps back while the camera flies to
+ * the new page's view, so the stars rush past. Not on the first page, and not for viewers who
+ * asked their system for less motion.
+ */
+function Warp({ trigger }: { trigger: string }) {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const started = useRef<number | null>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!reduceMotion) started.current = performance.now();
+  }, [trigger]);
+  useFrame(() => {
+    if (started.current === null) return;
+    const k = (performance.now() - started.current) / 1000 / WARP_SECONDS;
+    camera.fov = BASE_FOV + (k >= 1 ? 0 : WARP_FOV * Math.sin(Math.PI * k) ** 2);
+    camera.updateProjectionMatrix();
+    if (k >= 1) started.current = null;
+  });
+  return null;
+}
+
 export interface ConstellationProps {
   labels?: LabelRefs;
   /** Start far out in space and travel in: the opening of a first visit. */
@@ -497,9 +527,11 @@ export interface ConstellationProps {
   onHover?: (s: Service | null) => void;
   /** The address of a star's own page, for its label. */
   linkTo?: (s: Service) => string;
+  /** Changes on every page change, to set off the warp. */
+  warp?: string;
 }
 
-function Scene({ system, focus, agents, selected, view, onSelect, onHover, labels, fromAfar }: ConstellationProps) {
+function Scene({ system, focus, agents, selected, view, onSelect, onHover, labels, fromAfar, warp }: ConstellationProps) {
   const glow = useGlowTexture();
   const { size } = useThree();
   // Far enough that the whole constellation (about 9 units wide) fits the screen's width: a
@@ -544,6 +576,7 @@ function Scene({ system, focus, agents, selected, view, onSelect, onHover, label
         maxPolarAngle={Math.PI * 0.62}
       />
       <CameraRig view={view} distance={distance} slow={Boolean(fromAfar)} />
+      <Warp trigger={warp ?? ""} />
       {labels && <LabelTracker labels={labels} />}
       <EffectComposer multisampling={0}>
         <Bloom intensity={1.15} luminanceThreshold={0.18} luminanceSmoothing={0.3} mipmapBlur radius={0.72} />
@@ -593,7 +626,7 @@ export function Constellation(props: ConstellationProps) {
       <Canvas
         aria-hidden="true"
         dpr={[1, 1.75]}
-        camera={{ position: props.fromAfar ? [0, 9, 48] : [0, 0.9, 9.5], fov: 40 }}
+        camera={{ position: props.fromAfar ? [0, 9, 48] : [0, 0.9, 9.5], fov: BASE_FOV }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         onPointerMissed={() => props.onSelect(null)}
       >

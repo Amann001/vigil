@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Panel, RisingText } from "../components/Bits";
 import { BreakSomething } from "../components/BreakSomething";
+import { ReplayBar } from "../components/ReplayBar";
 import { now } from "../lib/clock";
 import { href } from "../lib/route";
 import { diagnosisOf, eventsOf, serviceOf, type Situation } from "../lib/state";
@@ -283,6 +284,7 @@ function ReplayGuide({ kind }: { kind: Situation["kind"] }) {
           <p>{guide.text}</p>
         </motion.div>
       </AnimatePresence>
+      <ReplayBar />
     </div>
   );
 }

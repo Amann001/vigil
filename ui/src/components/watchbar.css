@@ -5,7 +5,7 @@
   height: var(--bar);
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 18px;
   padding: 0 22px;
   /* Frosted, so a page scrolling underneath never collides with the links. */
   background: rgb(4 7 20 / 0.55);
@@ -78,7 +78,7 @@
 
 .pages {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
 .pages a {
@@ -184,9 +184,118 @@
   height: auto;
 }
 
-@media (max-width: 1180px) {
-  .watchbar .clock {
+@media (max-width: 1240px) {
+  .watchbar .clock,
+  .detector-mood {
     display: none;
+  }
+}
+
+/* More: the pages for whoever runs Vigil */
+.more {
+  position: relative;
+}
+
+.more-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--haze);
+  transition: color 0.2s, background 0.2s;
+}
+
+.more-button:hover,
+.more-button[aria-expanded="true"],
+.more-button.is-current {
+  color: var(--starlight);
+}
+
+.more-button.is-current {
+  background: rgb(232 237 255 / 0.09);
+}
+
+.chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.more-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 270px;
+  padding: 6px;
+  display: grid;
+  border-radius: var(--radius-m);
+  background: var(--glass-strong);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.45);
+}
+
+.more-menu a,
+.more-menu button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.more-menu a:hover,
+.more-menu button:hover,
+.more-menu a[aria-current="page"] {
+  background: rgb(232 237 255 / 0.07);
+}
+
+.more-menu span {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.sound-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--haze);
+  transition: color 0.2s, background 0.2s;
+}
+
+.sound-button:hover {
+  color: var(--starlight);
+  background: rgb(232 237 255 / 0.07);
+}
+
+.sound-button.is-on {
+  color: var(--aurora);
+}
+
+.sound-button .wave {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.sound-button.is-on .wave {
+  animation: wave 1.6s ease-in-out infinite;
+}
+
+.sound-button.is-on .wave-2 {
+  animation-delay: 0.25s;
+}
+
+@keyframes wave {
+  50% {
+    opacity: 0.35;
   }
 }
 
@@ -289,13 +398,17 @@
 }
 
 @media (max-width: 720px) {
-  .watchbar .pages {
+  .watchbar .pages,
+  .watchbar .more {
     display: none;
+  }
+
+  .watchbar .sound-button {
+    margin-left: auto;
   }
 
   .menu-button {
     display: block;
-    margin-left: auto;
     padding: 8px 14px;
     border-radius: 999px;
     border: 1px solid var(--line-strong);

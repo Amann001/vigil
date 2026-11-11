@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { now as clockNow } from "../lib/clock";
+import { useSound } from "../lib/sound";
+import { OPEN_PALETTE } from "./CommandPalette";
 import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import type { SystemView } from "../lib/types";
@@ -10,9 +12,97 @@ import "./watchbar.css";
 const PAGES: { route: Route; label: string; also?: Route["page"][] }[] = [
   { route: { page: "watch" }, label: "War room", also: ["service"] },
   { route: { page: "history" }, label: "Incidents", also: ["incident"] },
+  { route: { page: "status" }, label: "Status" },
   { route: { page: "how" }, label: "How it works" },
   { route: { page: "scores" }, label: "Results" },
 ];
+
+// For whoever runs it: reached from "More", the command palette and the phone menu.
+const MORE: { route: Route; label: string; hint: string }[] = [
+  { route: { page: "audit" }, label: "Audit log", hint: "Every decision about an action" },
+  { route: { page: "policy" }, label: "Policy", hint: "What Vigil may do" },
+];
+
+function SoundButton() {
+  const [on, setOn] = useSound();
+  return (
+    <button
+      className={`sound-button${on ? " is-on" : ""}`}
+      onClick={() => setOn(!on)}
+      aria-pressed={on}
+      aria-label={on ? "Turn sound off" : "Turn sound on"}
+      title={on ? "Sound on" : "Sound off"}
+    >
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
+        {on ? (
+          <>
+            <path d="M16 9a4 4 0 0 1 0 6" className="wave" />
+            <path d="M18.5 6.5a7.5 7.5 0 0 1 0 11" className="wave wave-2" />
+          </>
+        ) : (
+          <path d="M16 9.5l5 5m0-5l-5 5" className="wave" />
+        )}
+      </svg>
+    </button>
+  );
+}
+
+function More({ route }: { route: Route }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [route]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: Event) => !(event.target as Element)?.closest?.(".more") && setOpen(false);
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const current = MORE.some((m) => m.route.page === route.page);
+  return (
+    <div className="more">
+      <button className={`more-button${current ? " is-current" : ""}`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}>
+        More
+        <span className="chevron" aria-hidden="true" />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="more-menu"
+            role="menu"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
+          >
+            {MORE.map((m) => (
+              <a key={m.label} role="menuitem" href={href(m.route)} aria-current={m.route.page === route.page ? "page" : undefined}>
+                <strong>{m.label}</strong>
+                <span>{m.hint}</span>
+              </a>
+            ))}
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new Event(OPEN_PALETTE));
+              }}
+            >
+              <strong>Search</strong>
+              <span>
+                Pages, services, incidents <kbd>Ctrl K</kbd>
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => new Date(clockNow()));
@@ -108,6 +198,8 @@ export function WatchBar({
           );
         })}
       </nav>
+      <More route={route} />
+      <SoundButton />
       <button className="menu-button" aria-expanded={menu} aria-controls="site-menu" onClick={() => setMenu(!menu)}>
         {menu ? "Close" : "Menu"}
       </button>
@@ -124,7 +216,7 @@ export function WatchBar({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            {[{ route: { page: "home" } as Route, label: "Home" }, ...PAGES].map(({ route: target, label }, i) => (
+            {[{ route: { page: "home" } as Route, label: "Home" }, ...PAGES, ...MORE].map(({ route: target, label }, i) => (
               <motion.a
                 key={label}
                 href={href(target)}

@@ -1,0 +1,172 @@
+/* The operational pages (status, audit log, policy): one readable column over a dimmed sky. */
+.doc {
+  position: fixed;
+  inset: var(--bar) 0 0 0;
+  z-index: 10;
+  overflow-y: auto;
+  padding: 14px 22px 48px;
+}
+
+.doc-panel {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 36px 40px 34px;
+  display: grid;
+  gap: 30px;
+}
+
+.doc-head {
+  display: grid;
+  gap: 12px;
+}
+
+.doc-head h1 {
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.doc-lede {
+  color: var(--haze);
+  font-size: var(--step-1);
+  max-width: 62ch;
+}
+
+.doc-section {
+  display: grid;
+  gap: 14px;
+}
+
+.doc-section > h2 {
+  font-size: var(--step-2);
+  letter-spacing: -0.035em;
+}
+
+.doc-note {
+  color: var(--dim);
+  font-size: var(--step--1);
+  line-height: 1.55;
+}
+
+.doc-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Tables: plain rows, readable at a glance, scroll sideways on a phone. */
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 -8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--dim);
+  padding: 8px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.table tr:hover td {
+  background: rgb(232 237 255 / 0.03);
+}
+
+.table a {
+  color: var(--starlight);
+  text-underline-offset: 3px;
+  text-decoration-color: var(--dim);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--haze);
+}
+
+.pill-aurora {
+  color: var(--aurora);
+  border-color: rgb(111 227 200 / 0.35);
+}
+
+.pill-sodium {
+  color: var(--sodium);
+  border-color: rgb(255 165 61 / 0.4);
+}
+
+.pill-flare {
+  color: #ff8a96;
+  border-color: rgb(255 77 94 / 0.4);
+}
+
+/* Key numbers in a row */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgb(232 237 255 / 0.035);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+}
+
+.stat dt {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.stat dd {
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--step-3);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.stat small {
+  color: var(--dim);
+  font-size: 11.5px;
+}
+
+@media (max-width: 700px) {
+  .doc {
+    padding: 10px 10px 40px;
+  }
+
+  .doc-panel {
+    padding: 26px 20px;
+  }
+}
