@@ -2,31 +2,23 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * The war room's sound, made in the browser with the Web Audio API (no audio files): a low
- * ambient hum while sound is on, and short cues when something changes. Off until the viewer
- * turns it on, and remembered on this device.
+ * ambient hum while sound is on, and short cues when something changes. Off at the start of
+ * every visit: browsers keep a page silent until it is clicked, so a remembered "on" showed as
+ * on while silent, and the click meant to start it switched it off.
  *
- *   alarm    an alert: two low notes, falling
+ *   on       sound switched on: two quick rising notes, so it is clear it works
+ *   alarm    an alert: two notes, falling
  *   decide   a fix is waiting for a person: one soft bell
  *   fixed    the fix landed: a rising chord
  *   move     a page change: a short breath of filtered noise, with the camera's warp
  */
 
-const KEY = "vigil.sound";
 const listeners = new Set<(on: boolean) => void>();
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let hum: { stop: () => void } | null = null;
-
-function stored(): boolean {
-  try {
-    return localStorage.getItem(KEY) === "on";
-  } catch {
-    return false;
-  }
-}
-
-let enabled = stored();
+let enabled = false;
 
 function audio(): { ctx: AudioContext; out: GainNode } | null {
   if (typeof window === "undefined" || !("AudioContext" in window)) return null;
@@ -65,21 +57,23 @@ function startHum() {
   const { ctx: c, out } = a;
   const filter = c.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = 320;
+  // Laptop and phone speakers barely play below ~150 Hz, so the hum is built from notes they can.
+  filter.frequency.value = 1100;
   const level = c.createGain();
   level.gain.setValueAtTime(0, c.currentTime);
-  level.gain.linearRampToValueAtTime(0.045, c.currentTime + 3);
+  level.gain.linearRampToValueAtTime(0.05, c.currentTime + 2);
   // A slow drift of the filter keeps the hum from sounding like a machine left on.
   const lfo = c.createOscillator();
   const depth = c.createGain();
   lfo.frequency.value = 0.07;
-  depth.gain.value = 120;
+  depth.gain.value = 350;
   lfo.connect(depth).connect(filter.frequency);
-  const voices = [55, 82.41, 110.3].map((f, i) => {
+  // A soft A minor chord: A3, E4, A4 and C5, gently detuned so it breathes.
+  const voices = [220, 329.63, 440, 523.25].map((f, i) => {
     const o = c.createOscillator();
-    o.type = i === 2 ? "triangle" : "sine";
+    o.type = i === 0 ? "triangle" : "sine";
     o.frequency.value = f;
-    o.detune.value = (i - 1) * 6;
+    o.detune.value = (i % 2 ? 1 : -1) * 5;
     o.connect(filter);
     o.start();
     return o;
@@ -105,17 +99,17 @@ function stopHum() {
 export const sounds = {
   alarm() {
     if (!enabled) return;
-    note(440, 0, 0.5, { type: "triangle", gain: 0.1 });
-    note(329.6, 0.22, 0.8, { type: "triangle", gain: 0.1 });
+    note(880, 0, 0.5, { type: "triangle", gain: 0.28 });
+    note(659.25, 0.22, 0.9, { type: "triangle", gain: 0.28 });
   },
   decide() {
     if (!enabled) return;
-    note(880, 0, 1.4, { gain: 0.07 });
-    note(1318.5, 0.01, 1.0, { gain: 0.03 });
+    note(880, 0, 1.6, { gain: 0.18 });
+    note(1318.5, 0.01, 1.1, { gain: 0.07 });
   },
   fixed() {
     if (!enabled) return;
-    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, i * 0.09, 1.3 - i * 0.15, { gain: 0.06 }));
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, i * 0.09, 1.3 - i * 0.15, { gain: 0.14 }));
   },
   move() {
     const a = enabled ? audio() : null;
@@ -134,7 +128,7 @@ export const sounds = {
     band.frequency.exponentialRampToValueAtTime(2200, c.currentTime + length);
     const env = c.createGain();
     env.gain.setValueAtTime(0, c.currentTime);
-    env.gain.linearRampToValueAtTime(0.05, c.currentTime + 0.12);
+    env.gain.linearRampToValueAtTime(0.35, c.currentTime + 0.12);
     env.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + length);
     noise.connect(band).connect(env).connect(out);
     noise.start();
@@ -143,10 +137,10 @@ export const sounds = {
 
 export function setSound(on: boolean) {
   enabled = on;
-  try {
-    localStorage.setItem(KEY, on ? "on" : "off");
-  } catch {
-    /* not remembered; still works for this visit */
+  // Say so out loud: two quick rising notes when sound comes on.
+  if (on) {
+    note(659.25, 0, 0.35, { gain: 0.16 });
+    note(987.77, 0.1, 0.5, { gain: 0.14 });
   }
   if (on) startHum();
   else stopHum();
@@ -160,23 +154,6 @@ export function useSound(): [boolean, (on: boolean) => void] {
     return () => void listeners.delete(setOn);
   }, []);
   return [on, setSound];
-}
-
-/**
- * Browsers only allow sound after the viewer has interacted with the page, so a remembered
- * "on" starts the hum at the first click or key press.
- */
-export function useSoundStart() {
-  useEffect(() => {
-    if (!enabled) return;
-    const start = () => enabled && startHum();
-    window.addEventListener("pointerdown", start, { once: true });
-    window.addEventListener("keydown", start, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", start);
-      window.removeEventListener("keydown", start);
-    };
-  }, []);
 }
 
 /** Plays the cue for each change in what the war room is about (not for the first state). */

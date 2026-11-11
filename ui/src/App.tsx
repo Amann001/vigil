@@ -5,7 +5,7 @@ import { Intro, introSeen } from "./components/Intro";
 import { WatchBar } from "./components/WatchBar";
 import { api, useMode, usePoll } from "./lib/api";
 import { useDecisionNotifications } from "./lib/notify";
-import { useSoundCues, useSoundStart } from "./lib/sound";
+import { useSoundCues } from "./lib/sound";
 import { go, href, type Route, useRoute } from "./lib/route";
 import { serviceOf, situation } from "./lib/state";
 import type { Service } from "./lib/types";
@@ -79,7 +79,6 @@ export function App() {
   }, [route]);
 
   const pageKey = route.page === "incident" ? `incident/${route.id}` : route.page === "service" ? `service/${route.service}` : route.page;
-  useSoundStart();
   useSoundCues(now.kind, pageKey);
   useDecisionNotifications(now.pending, mode === "live");
 
