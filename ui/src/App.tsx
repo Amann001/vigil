@@ -119,7 +119,8 @@ export function App() {
           agents={now.agents}
           selected={hovered}
           view={view}
-          dim={["history", "how", "scores", "lost", "status", "audit", "policy"].includes(route.page) || (route.page === "home" && pastHero)}
+          dim={["history", "how", "scores", "lost", "status", "audit", "policy"].includes(route.page)}
+          soft={route.page === "home" && pastHero}
           warp={pageKey}
           onSelect={(service) => service && go({ page: "service", service })}
           onHover={setHovered}
@@ -131,7 +132,7 @@ export function App() {
       <WatchBar route={route} system={system} mode={mode} situation={now} />
       <CommandPalette list={list} mode={mode} />
       <AnimatePresence mode="wait">
-        {!intro && route.page === "home" && <Home key="home" situation={now} system={system} onPastHero={setPastHero} />}
+        {!intro && route.page === "home" && <Home key="home" situation={now} system={system} list={list} onPastHero={setPastHero} />}
         {!intro && route.page === "watch" && (
           <Watch key="watch" system={system} situation={now} list={list} mode={mode} />
         )}

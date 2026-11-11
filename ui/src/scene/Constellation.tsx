@@ -4,6 +4,7 @@ import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { homeScroll } from "../lib/scroll";
 import { SERVICES, type Service, type SystemView } from "../lib/types";
 import { formatValue, serviceName } from "../lib/words";
 import "./constellation.css";
@@ -410,6 +411,9 @@ export type View =
 
 const WIDE_AIM = new THREE.Vector3(0.1, -0.95, 0);
 const SWAY = 0.38; // radians either side of facing the shop
+const STORY_TURN = 0.9; // radians the home page's sky turns from top to bottom
+const STORY_RISE = 0.5; // radians the camera rises above the sky by the bottom
+const LEVEL_PHI = 1.47; // the camera's usual height: just above level
 const CENTRE = new THREE.Vector3(0, 0.2, 0);
 const PHONE_HERO_AIM = new THREE.Vector3(0, -4.6, 0); // aiming low puts the stars near the top
 
@@ -459,13 +463,21 @@ function CameraRig({ view, distance, slow }: { view: View; distance: number; slo
     if (!controls) return;
     if (!sway.current.dragging && !reduceMotion) {
       const t = performance.now() / 1000 - sway.current.since;
-      const theta = sway.current.base + SWAY * Math.sin(t * 0.07);
+      // On the home page, scrolling down turns the sky and lifts the camera above it.
+      const story = view.kind === "hero" ? homeScroll.progress : 0;
+      const theta = sway.current.base + SWAY * Math.sin(t * 0.07) + story * STORY_TURN;
       const offset = camera.position.clone().sub(controls.target);
       const spherical = new THREE.Spherical().setFromVector3(offset);
       spherical.theta += (theta - spherical.theta) * (1 - Math.exp(-delta * 2));
+      if (view.kind === "hero") {
+        const phi = LEVEL_PHI - story * STORY_RISE;
+        spherical.phi += (phi - spherical.phi) * (1 - Math.exp(-delta * 2));
+      }
       camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));
     }
-    const { point, zoom, shift } = aimOf(view, size.width / size.height);
+    const aim = aimOf(view, size.width / size.height);
+    const { point, shift } = aim;
+    const zoom = aim.zoom + (view.kind === "hero" ? homeScroll.progress * 0.9 : 0);
     // A sideways shift moves the aim along the camera's own right-hand direction, so the stars
     // land on the same side of the screen however far the sky has turned.
     right.setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
@@ -523,6 +535,8 @@ export interface ConstellationProps {
   view: View;
   /** Dim the sky behind a page that is mostly text. */
   dim?: boolean;
+  /** Soften the sky without blurring it: behind the home page's story. */
+  soft?: boolean;
   onSelect: (s: Service | null) => void;
   onHover?: (s: Service | null) => void;
   /** The address of a star's own page, for its label. */
@@ -622,7 +636,7 @@ function Labels({ system, focus, selected, labels, fromAfar, linkTo, onHover, vi
 export function Constellation(props: ConstellationProps) {
   const labels: LabelRefs = useRef({});
   return (
-    <div className={`constellation${props.dim ? " is-dim" : ""}`}>
+    <div className={`constellation${props.dim ? " is-dim" : props.soft ? " is-soft" : ""}`}>
       <Canvas
         aria-hidden="true"
         dpr={[1, 1.75]}

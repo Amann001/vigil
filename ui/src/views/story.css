@@ -1,0 +1,591 @@
+/* The home page's story, below the hero. Each section carries its own dark band so the text
+   reads over the moving sky. */
+
+.chapter {
+  position: relative;
+  padding: 16vh clamp(16px, 6vw, 96px);
+  display: grid;
+  justify-items: start;
+  gap: 20px;
+  background: rgb(4 7 20 / 0.72);
+}
+
+.chapter > *,
+.story-team .team-pin > *,
+.story-terminal .terminal-pin > *,
+.story-stack > * {
+  pointer-events: auto;
+}
+
+/* 1. The problem */
+.story-problem {
+  min-height: 120vh;
+  align-content: center;
+  background: linear-gradient(to bottom, rgb(4 7 20 / 0.35), rgb(4 7 20 / 0.8) 30%, rgb(4 7 20 / 0.8) 70%, rgb(4 7 20 / 0.6));
+}
+
+.problem-text p {
+  max-width: 22em;
+  font-family: var(--display);
+  font-size: clamp(2rem, 4.6vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+}
+
+.lit-word {
+  display: inline-block;
+  white-space: pre;
+}
+
+.problem-answer {
+  max-width: 34em;
+  margin-top: 18px;
+  padding-left: 18px;
+  border-left: 2px solid var(--aurora);
+  font-size: var(--step-1);
+  color: #c9d1f0;
+}
+
+/* 2. The team: pinned while the cards slide sideways */
+.story-team {
+  position: relative;
+  background: rgb(4 7 20 / 0.6);
+}
+
+.team-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: grid;
+  /* One column the width of the screen: the sliding row is wider, and must not widen it. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 4vh;
+  padding: calc(var(--bar) + 7vh) 0 6vh;
+  overflow: hidden;
+}
+
+.team-head {
+  padding: 0 clamp(16px, 6vw, 96px);
+  display: grid;
+  gap: 12px;
+}
+
+.team-track {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  padding: 0 clamp(16px, 6vw, 96px);
+  width: max-content;
+}
+
+.team-card {
+  position: relative;
+  width: clamp(250px, 24vw, 320px);
+  min-height: 300px;
+  padding: 26px 24px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgb(20 28 61 / 0.9), rgb(10 16 40 / 0.85));
+  border: 1px solid var(--line-strong);
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.7);
+}
+
+.team-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--step-2);
+  letter-spacing: -0.04em;
+}
+
+.team-card p {
+  color: #c9d1f0;
+  line-height: 1.6;
+}
+
+.team-card small {
+  color: var(--dim);
+  font-family: var(--code);
+  font-size: 12px;
+}
+
+.team-index {
+  font-family: var(--display);
+  font-size: 4.2rem;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  color: rgb(232 237 255 / 0.08);
+}
+
+.team-stage {
+  color: var(--sodium);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.kind-human {
+  border-color: rgb(255 165 61 / 0.55);
+  background: linear-gradient(160deg, rgb(60 38 14 / 0.75), rgb(10 16 40 / 0.85));
+}
+
+.kind-code {
+  border-style: dashed;
+}
+
+.team-more {
+  text-decoration: none;
+  align-content: end;
+  background: linear-gradient(160deg, rgb(111 227 200 / 0.18), rgb(10 16 40 / 0.85));
+  border-color: rgb(111 227 200 / 0.4);
+  transition: transform 0.35s var(--ease-out);
+}
+
+.team-more:hover {
+  transform: translateY(-4px);
+}
+
+.team-arrow {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--aurora);
+  position: relative;
+}
+
+.team-arrow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid var(--aurora);
+  border-right: 2px solid var(--aurora);
+  transform: translateX(-2px) rotate(45deg);
+}
+
+.team-progress {
+  margin: 0 clamp(16px, 6vw, 96px);
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.team-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--sodium), var(--aurora));
+}
+
+/* 3. Inside an investigation: pinned while the terminal plays */
+.story-terminal {
+  position: relative;
+  height: 260vh;
+  background: rgb(4 7 20 / 0.78);
+}
+
+.terminal-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: calc(var(--bar) + 5vh) clamp(16px, 6vw, 96px) 5vh;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  gap: 40px;
+  align-items: center;
+}
+
+.terminal-pin header {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+
+.terminal-facts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  color: var(--haze);
+}
+
+.terminal-facts strong {
+  font-family: var(--display);
+  font-size: var(--step-2);
+  color: var(--starlight);
+  margin-right: 6px;
+  letter-spacing: -0.03em;
+}
+
+.terminal {
+  height: min(68vh, 560px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-radius: 14px;
+  background: rgb(6 9 24 / 0.94);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 40px 100px -30px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(143 183 255 / 0.06);
+  overflow: hidden;
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--code);
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.terminal-bar i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgb(232 237 255 / 0.15);
+}
+
+.terminal-bar span {
+  margin-left: 8px;
+}
+
+.terminal-body {
+  list-style: none;
+  margin: 0;
+  padding: 16px 18px;
+  overflow-y: auto;
+  font-family: var(--code);
+  font-size: 12.5px;
+  line-height: 1.65;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  scrollbar-width: none;
+}
+
+.terminal-body li {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #b9c3e6;
+}
+
+.terminal-body li::before {
+  display: inline-block;
+  width: 1.6em;
+  color: var(--dim);
+}
+
+.line-wait {
+  color: var(--sodium) !important;
+}
+
+.line-wait::before {
+  content: "!";
+}
+
+.line-ask {
+  color: var(--starlight) !important;
+}
+
+.line-ask::before {
+  content: "?";
+}
+
+.line-call {
+  color: #8fb7ff !important;
+  padding-left: 1.6em;
+}
+
+.line-call::before {
+  content: "$";
+}
+
+.line-found::before {
+  content: "←";
+}
+
+.line-verdict {
+  color: var(--aurora) !important;
+  font-weight: 600;
+}
+
+.line-verdict::before,
+.line-fix::before {
+  content: "✓";
+  color: var(--aurora);
+}
+
+.line-fix {
+  color: var(--sodium) !important;
+}
+
+.terminal-caret {
+  width: 8px;
+  height: 15px;
+  background: var(--starlight);
+  animation: caret 1s steps(1) infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 4. The architecture */
+.arch {
+  width: 100%;
+  max-width: 1100px;
+  margin-top: 12px;
+}
+
+.arch svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.arch-wire {
+  fill: none;
+  stroke: url(#wire);
+  stroke-width: 2;
+  stroke-linecap: round;
+  /* No glow filter: a filter on a perfectly straight line has a zero-height box, and the
+     browser then draws nothing at all. */
+}
+
+.arch-wire.is-return {
+  stroke: var(--aurora);
+  stroke-dasharray: 2 7;
+  stroke-width: 1.6;
+  opacity: 0.8;
+}
+
+.arch-node {
+  fill: var(--deep);
+  stroke: var(--starlight);
+  stroke-width: 1.5;
+}
+
+.node-detect,
+.node-you {
+  stroke: var(--sodium);
+  fill: rgb(255 165 61 / 0.12);
+}
+
+.node-guard,
+.node-report {
+  stroke: var(--aurora);
+  fill: rgb(111 227 200 / 0.1);
+}
+
+.node-agents,
+.node-memory {
+  stroke: #8fb7ff;
+  fill: rgb(143 183 255 / 0.12);
+}
+
+.arch-label {
+  fill: var(--starlight);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  text-anchor: middle;
+  letter-spacing: -0.02em;
+}
+
+.arch-sub {
+  fill: var(--haze);
+  font-family: var(--text);
+  font-size: 12.5px;
+  text-anchor: middle;
+}
+
+/* 5. The numbers */
+.numbers {
+  margin: 20px 0 10px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px 40px;
+}
+
+.number dt {
+  font-family: var(--display);
+  font-size: clamp(3.2rem, 7vw, 6rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+  background: linear-gradient(160deg, var(--starlight) 35%, #8fb7ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.count-of {
+  font-size: 0.45em;
+  letter-spacing: -0.02em;
+  color: var(--haze);
+  -webkit-text-fill-color: var(--haze);
+}
+
+.number dd {
+  margin: 10px 0 0;
+  color: var(--haze);
+  line-height: 1.55;
+  max-width: 24em;
+}
+
+/* 6. The stack, sliding past */
+.story-stack {
+  padding: 7vh 0;
+  overflow: hidden;
+  background: rgb(4 7 20 / 0.85);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+
+.marquee:hover {
+  animation-play-state: paused;
+}
+
+.marquee-run {
+  display: flex;
+  gap: 56px;
+  padding-right: 56px;
+}
+
+.marquee span {
+  font-family: var(--display);
+  font-size: clamp(1.6rem, 3.4vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  color: rgb(232 237 255 / 0.22);
+  transition: color 0.3s;
+}
+
+.marquee span:hover {
+  color: var(--starlight);
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* 7. The last word */
+.story-final {
+  min-height: 80vh;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  background: radial-gradient(70% 60% at 50% 60%, rgb(255 165 61 / 0.12), rgb(4 7 20 / 0.85) 70%);
+}
+
+.final-title {
+  max-width: 14em;
+  font-size: clamp(2.6rem, 6.4vw, 6rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.final-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  padding: 26px;
+}
+
+.button-huge {
+  min-height: 64px;
+  padding: 0 34px;
+  font-size: var(--step-1);
+  box-shadow: 0 0 60px -10px rgb(255 165 61 / 0.6);
+}
+
+@media (max-width: 900px) {
+  .terminal-pin {
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 22px;
+  }
+
+  .terminal {
+    height: 46vh;
+  }
+
+  .terminal-facts,
+  .terminal-pin .section-lede {
+    display: none;
+  }
+
+  .numbers {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .numbers {
+    grid-template-columns: 1fr;
+  }
+
+  .team-card {
+    width: 78vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
+  }
+}
+
+/* Laptop screens are short: keep the pinned sections inside the window. */
+@media (max-height: 820px) {
+  .team-pin {
+    gap: 3vh;
+    padding-top: calc(var(--bar) + 4vh);
+    padding-bottom: 4vh;
+  }
+
+  .team-head .section-lede {
+    display: none;
+  }
+
+  .team-card {
+    min-height: 0;
+    padding: 20px 20px 22px;
+    gap: 8px;
+  }
+
+  .team-card p {
+    font-size: var(--step--1);
+    line-height: 1.55;
+  }
+
+  .team-index {
+    font-size: 3rem;
+  }
+
+  .terminal {
+    height: min(72vh, 520px);
+  }
+}

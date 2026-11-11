@@ -2,9 +2,11 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } fr
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RisingText } from "../components/Bits";
-import { href } from "../lib/route";
+import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
-import type { SystemView } from "../lib/types";
+import { homeScroll } from "../lib/scroll";
+import type { InvestigationSummary, SystemView } from "../lib/types";
+import { Architecture, FinalCall, Numbers, Problem, Stack, Team, Terminal } from "./HomeStory";
 import "./home.css";
 
 const FILM = `${import.meta.env.BASE_URL}film/vigil-demo.mp4`;
@@ -24,6 +26,12 @@ const PRINCIPLES = [
   { title: "Durable by default", text: "Every step is checkpointed. Kill a worker mid-investigation and another finishes it." },
   { title: "Measured, not assumed", text: "Tested on scenarios someone else wrote, and on public benchmarks, with the misses published." },
   { title: "Runs on free tiers", text: "Gemini, Groq, Neon and Langfuse free plans, and under 5 GB of disk." },
+];
+
+const FOOTER: [string, [string, Route][]][] = [
+  ["Watch", [["War room", { page: "watch" }], ["Incidents", { page: "history" }], ["Status", { page: "status" }]]],
+  ["Learn", [["How it works", { page: "how" }], ["Results", { page: "scores" }]]],
+  ["Operate", [["Audit log", { page: "audit" }], ["Policy", { page: "policy" }]]],
 ];
 
 function liveLine(situation: Situation): string {
@@ -101,17 +109,27 @@ function Night() {
 
 export function Home({
   situation,
+  list,
   onPastHero,
 }: {
   situation: Situation;
   system: SystemView | null;
+  list: InvestigationSummary[] | null;
   /** Past the first screen the sky steps back, so the stars stop crossing the text. */
   onPastHero: (past: boolean) => void;
 }) {
   const [film, setFilm] = useState(false);
-  const { scrollY } = useScroll();
+  const { scrollY, scrollYProgress } = useScroll();
   useMotionValueEvent(scrollY, "change", (y) => onPastHero(y > window.innerHeight * 0.55));
-  useEffect(() => () => onPastHero(false), [onPastHero]);
+  // The sky turns and the camera rises as the story goes on (read by the 3D scene each frame).
+  useMotionValueEvent(scrollYProgress, "change", (p) => (homeScroll.progress = p));
+  useEffect(
+    () => () => {
+      onPastHero(false);
+      homeScroll.progress = 0;
+    },
+    [onPastHero],
+  );
   return (
     <main className="home">
       <section className="hero">
@@ -157,6 +175,8 @@ export function Home({
         </span>
       </section>
 
+      <Problem />
+
       <section className="home-section">
         <h2 className="section-title">One night, start to finish</h2>
         <p className="section-lede">A real incident on Vigil's demo shop, minute by minute.</p>
@@ -165,6 +185,11 @@ export function Home({
           Watch it happen in the war room
         </a>
       </section>
+
+      <Team />
+      <Terminal list={list} />
+      <Architecture />
+      <Numbers />
 
       <section className="home-section">
         <h2 className="section-title">Built like it runs in production</h2>
@@ -197,11 +222,39 @@ export function Home({
         </div>
       </section>
 
+      <Stack />
+      <FinalCall />
+
       <footer className="home-footer">
-        <p className="footer-word">Vigil</p>
-        <p>
-          Python, LangGraph, PostgreSQL with pgvector, scikit-learn, ONNX Runtime, FastAPI, React and Three.js. Built to run on
-          free tiers.
+        <div className="footer-top">
+          <div className="footer-brand">
+            <p className="footer-word">Vigil</p>
+            <p>The AI on-call engineer that never sleeps. Detects with machine learning, investigates with a team of agents, and fixes only with a person's approval.</p>
+          </div>
+          <nav className="footer-links" aria-label="Site">
+            {FOOTER.map(([title, links]) => (
+              <div key={title}>
+                <h3>{title}</h3>
+                <ul>
+                  {links.map(([label, route]) => (
+                    <li key={label}>
+                      <a href={href(route)}>{label}</a>
+                    </li>
+                  ))}
+                  {title === "Learn" && (
+                    <li>
+                      <button className="footer-film" onClick={() => setFilm(true)}>
+                        The film
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            ))}
+          </nav>
+        </div>
+        <p className="footer-base">
+          Runs on free tiers: Gemini, Groq, Neon Postgres and Langfuse. Press <kbd>Ctrl K</kbd> anywhere to jump to a page.
         </p>
       </footer>
 
