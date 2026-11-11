@@ -36,7 +36,7 @@ function DetectorStrip({ system }: { system: SystemView | null }) {
   const mood = !system?.online ? "No metrics" : ratio >= 1 ? "Alarmed" : ratio >= 0.6 ? "Uneasy" : "Calm";
   const scale = (v: number) => Math.min(1, Math.log1p(v) / Math.log1p(threshold * 2.2));
   return (
-    <div className="detector" title="How unusual the last ten minutes look to the anomaly detector">
+    <div className="detector" tabIndex={0} aria-describedby="detector-explainer">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Detector: ${mood}`}>
         <line x1="0" x2={width} y1={height - scale(threshold) * height} y2={height - scale(threshold) * height} className="detector-line" />
         {ticks.map((v, i) => {
@@ -55,6 +55,17 @@ function DetectorStrip({ system }: { system: SystemView | null }) {
         })}
       </svg>
       <span className={`detector-mood mood-${mood.toLowerCase().replace(" ", "-")}`}>{mood}</span>
+      <div className="detector-explainer" id="detector-explainer" role="tooltip">
+        <strong>The anomaly detector</strong>
+        <p>
+          A machine-learning model reads 40 signals from the shop every 5 seconds. Each bar is one
+          reading, as tall as it is unusual: the last ten minutes, newest on the right.
+        </p>
+        <p>
+          Bars past the dashed line turn amber. When readings stay past it, Vigil raises an alert
+          and the agents start investigating. No fixed thresholds: it learned what normal looks like.
+        </p>
+      </div>
     </div>
   );
 }

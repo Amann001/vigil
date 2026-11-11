@@ -371,7 +371,7 @@
 }
 
 .replay-note {
-  max-width: 260px;
+  max-width: 300px;
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgb(255 165 61 / 0.3);
@@ -380,6 +380,42 @@
   color: var(--haze);
   font-size: var(--step--1);
   line-height: 1.45;
+}
+
+.replay-note p + p {
+  margin-top: 6px;
+}
+
+.guide-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-head strong {
+  color: var(--starlight);
+  font-weight: 600;
+}
+
+.guide-steps {
+  display: flex;
+  gap: 4px;
+}
+
+.guide-steps i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.guide-steps .is-done {
+  background: var(--haze);
+}
+
+.guide-steps .is-now {
+  background: var(--sodium);
+  box-shadow: 0 0 8px var(--sodium);
 }
 
 @media (max-width: 900px) {

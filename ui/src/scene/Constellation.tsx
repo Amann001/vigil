@@ -1,4 +1,4 @@
-import { Line, OrbitControls, Stars } from "@react-three/drei";
+import { Billboard, Line, OrbitControls, Stars } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { Suspense, useMemo, useRef } from "react";
@@ -75,6 +75,31 @@ function toneOf(service: Service, system: SystemView | null, focus: Focus | null
   return "calm";
 }
 
+const COLLAPSE = 0.45; // seconds the star takes to go out
+const REIGNITE = 1.6; // seconds from going out to settled
+const SHOCK = 1.8; // seconds the shockwave takes to spread and fade
+
+/** The restart, as multipliers on the star's size and glow, `since` seconds after the fix. */
+function restartPulse(since: number): { active: boolean; core: number; halo: number; shock: number | null } {
+  if (since < COLLAPSE) {
+    const k = since / COLLAPSE;
+    const out = 1 - k * k * 0.85; // accelerates as it goes out
+    return { active: true, core: out, halo: out, shock: null };
+  }
+  const after = since - COLLAPSE;
+  if (after < Math.max(REIGNITE, SHOCK)) {
+    // Springs back past its size, then settles: a damped oscillation.
+    const settle = after < REIGNITE ? 1 - Math.exp(-5 * after) * Math.cos(9 * after) * 0.85 : 1;
+    return {
+      active: after < REIGNITE,
+      core: settle,
+      halo: settle * (1 + 0.9 * Math.exp(-3 * after)),
+      shock: after < SHOCK ? after / SHOCK : null,
+    };
+  }
+  return { active: false, core: 1, halo: 1, shock: null };
+}
+
 interface StarProps {
   service: Service;
   system: SystemView | null;
@@ -89,16 +114,29 @@ function Star({ service, system, tone, selected, glow, onSelect, onHover }: Star
   const core = useRef<THREE.Mesh>(null);
   const halo = useRef<THREE.Sprite>(null);
   const ring = useRef<THREE.Mesh>(null);
+  const shock = useRef<THREE.Mesh>(null);
   const color = useRef(COLORS.calm.clone());
+  // The moment a fix lands (trouble turning to aurora), the star restarts: it collapses,
+  // re-ignites and sends out a shockwave.
+  const previousTone = useRef(tone);
+  const restartedAt = useRef<number | null>(null);
   const latest = system?.services?.[service]?.latest;
   const down = Boolean(system?.online && latest && latest.up === null);
   const rate = latest?.request_rate ?? 1;
   const tilt = useMemo(() => [Math.random() * 0.8 + 0.6, Math.random() * Math.PI, 0] as const, []);
 
   useFrame((state, delta) => {
-    const target = down ? COLORS.ember : COLORS[tone];
-    color.current.lerp(target, 1 - Math.exp(-delta * 3));
     const t = state.clock.elapsedTime;
+    if (previousTone.current !== tone) {
+      const wasTrouble = previousTone.current === "sodium" || previousTone.current === "flare";
+      if (tone === "aurora" && wasTrouble && !reduceMotion) restartedAt.current = t;
+      previousTone.current = tone;
+    }
+    const since = restartedAt.current === null ? Infinity : t - restartedAt.current;
+    const pulse = restartPulse(since);
+    const target = down ? COLORS.ember : COLORS[tone];
+    // While it collapses the star keeps its old colour; it comes back already healed.
+    if (since > COLLAPSE) color.current.lerp(target, 1 - Math.exp(-delta * 3));
     // A heartbeat: quicker when the service is busier, a slow uneven flicker when it is down.
     const beat = down
       ? 0.35 + 0.25 * Math.max(0, Math.sin(t * 7.3) * Math.sin(t * 2.1))
@@ -109,14 +147,24 @@ function Star({ service, system, tone, selected, glow, onSelect, onHover }: Star
         .copy(color.current)
         .multiplyScalar(down ? 0.6 : intensity);
       const s = (selected ? 1.25 : 1) * (tone === "calm" ? 1 : 1.18);
-      core.current.scale.lerp(new THREE.Vector3(s, s, s), 1 - Math.exp(-delta * 6));
+      if (pulse.active) core.current.scale.setScalar(s * pulse.core);
+      else core.current.scale.lerp(new THREE.Vector3(s, s, s), 1 - Math.exp(-delta * 6));
     }
     if (halo.current) {
       const material = halo.current.material as THREE.SpriteMaterial;
       material.color.copy(color.current);
-      material.opacity = beat * (tone === "calm" ? 0.55 : 0.95);
-      const size = (tone === "calm" ? 1.5 : 2.6) * (0.92 + beat * 0.12);
+      material.opacity = Math.min(1, beat * (tone === "calm" ? 0.55 : 0.95) * pulse.halo);
+      const size = (tone === "calm" ? 1.5 : 2.6) * (0.92 + beat * 0.12) * pulse.halo;
       halo.current.scale.set(size, size, 1);
+    }
+    if (shock.current) {
+      shock.current.visible = pulse.shock !== null;
+      if (pulse.shock !== null) {
+        shock.current.scale.setScalar(0.3 + pulse.shock * 3.2);
+        const material = shock.current.material as THREE.MeshBasicMaterial;
+        material.opacity = Math.pow(1 - pulse.shock, 1.6);
+        material.color.copy(COLORS.aurora).multiplyScalar(1.4);
+      }
     }
     if (ring.current && !reduceMotion) {
       ring.current.rotation.z += delta * (down ? 0 : 0.15 + rate * 0.06);
@@ -158,6 +206,12 @@ function Star({ service, system, tone, selected, glow, onSelect, onHover }: Star
       <sprite ref={halo}>
         <spriteMaterial map={glow} blending={THREE.AdditiveBlending} depthWrite={false} transparent toneMapped={false} />
       </sprite>
+      <Billboard>
+        <mesh ref={shock} visible={false}>
+          <ringGeometry args={[0.975, 1, 128]} />
+          <meshBasicMaterial transparent blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+        </mesh>
+      </Billboard>
       <mesh ref={ring} rotation={tilt as unknown as THREE.Euler}>
         <torusGeometry args={[0.42, 0.004, 8, 96]} />
         <meshBasicMaterial transparent opacity={0.55} toneMapped={false} />

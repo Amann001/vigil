@@ -38,6 +38,10 @@ const END_PAUSE = 25;
 const START_AT = 25; // seconds into the tape: a short healthy stretch, then the fault
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
 
+function onStage(item: InvestigationSummary): boolean {
+  return item.id.startsWith("live-") || item.status !== "awaiting review";
+}
+
 function shifted<T>(value: T, ms: number): T {
   if (typeof value === "string") {
     return (ISO.test(value) ? new Date(Date.parse(value) + ms).toISOString() : value) as T;
@@ -160,7 +164,9 @@ class Player {
     const ms = this.offset();
     if (path === "/system") return this.system();
     if (path === "/live") return shifted(this.latest("live") ?? [], ms);
-    if (path === "/investigations") return shifted(this.latest("list") ?? [], ms);
+    // A development replay left waiting for review would sit in the inbox through the whole
+    // story; the public replay is about the one live incident, so it is left out.
+    if (path === "/investigations") return shifted((this.latest("list") ?? []).filter(onStage), ms);
     if (path === "/audit") return [];
     const match = path.match(/^\/investigations\/(.+)$/);
     if (match) {

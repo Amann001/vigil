@@ -293,14 +293,60 @@ export function Watch({
             </button>
           )}
         </div>
-        {mode === "demo" && (
-          <p className="replay-note">
-            A replay of a real incident, recorded from Vigil's API. Run Vigil on your machine to break the shop
-            yourself.
-          </p>
-        )}
+        {mode === "demo" && <ReplayGuide kind={situation.kind} />}
       </div>
       <AnimatePresence>{breaking && <BreakSomething onClose={() => setBreaking(false)} />}</AnimatePresence>
     </main>
+  );
+}
+
+/** The replay's story in four steps: what is happening now, and what a visitor can do. */
+const GUIDE: Record<string, { step: number; title: string; text: string }> = {
+  quiet: {
+    step: 1,
+    title: "A replay of a real incident",
+    text: "This is Vigil watching its demo shop, recorded from a real run. Keep an eye on the Orders star: something is about to go wrong with it.",
+  },
+  investigating: {
+    step: 2,
+    title: "Vigil noticed on its own",
+    text: "Its detector raised the alarm and AI agents are investigating. Follow the investigation to see each question they ask and what they find.",
+  },
+  decide: {
+    step: 3,
+    title: "Your turn",
+    text: "Vigil never changes anything without a person. Review the diagnosis and approve the fix; in the replay, nothing real is touched.",
+  },
+  recovered: {
+    step: 4,
+    title: "Fixed, with your approval",
+    text: "Open the incident to see the proof it worked, or Scores for how Vigil is tested. The replay starts again shortly.",
+  },
+};
+
+function ReplayGuide({ kind }: { kind: Situation["kind"] }) {
+  const guide = GUIDE[kind] ?? GUIDE.quiet;
+  return (
+    <div className="replay-note" aria-live="polite">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={guide.step}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <p className="guide-head">
+            <span className="guide-steps" aria-label={`Step ${guide.step} of 4`}>
+              {[1, 2, 3, 4].map((n) => (
+                <i key={n} className={n < guide.step ? "is-done" : n === guide.step ? "is-now" : ""} />
+              ))}
+            </span>
+            <strong>{guide.title}</strong>
+          </p>
+          <p>{guide.text}</p>
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }

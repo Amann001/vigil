@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { Panel, RisingText } from "../components/Bits";
+import { Panel, RisingText, Sparkline } from "../components/Bits";
 import { Decision } from "../components/Decision";
 import { Markdown } from "../components/Markdown";
 import { buildLog, type LogItem, STAGES, stageReached } from "../lib/log";
 import { href } from "../lib/route";
 import { diagnosisOf, serviceOf } from "../lib/state";
-import type { Investigation, Signal } from "../lib/types";
+import { SERVICES, type Investigation, type Service, type Signal, type SystemView } from "../lib/types";
 import {
   agentName,
   agentRole,
@@ -17,6 +17,7 @@ import {
   proposalName,
   serviceName,
   signalName,
+  signalService,
   statusName,
   toolName,
 } from "../lib/words";
@@ -28,13 +29,50 @@ function offset(at: string | undefined, start: string | undefined): string | nul
   return `+${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function SignalRow({ signal }: { signal: Signal }) {
+/** How far a reading is from usual, in words: "6.6× usual", "half of usual". */
+export function ratioWords(value: number, usual: number): string {
+  if (usual <= 0) return value > 0 ? "usually none" : "as usual";
+  const r = value / usual;
+  if (r >= 1.15) return `${r < 10 ? r.toFixed(1) : Math.round(r)}× usual`;
+  if (r <= 0.87) return `${Math.round(r * 100)}% of usual`;
+  return "about usual";
+}
+
+/** Where a reading sits on a log scale centred on its usual value: 1/16× at the left edge,
+ *  16× at the right. Logarithmic, so "twice as slow" and "half as fast" look equally far. */
+function meterPosition(value: number, usual: number): number {
+  if (usual <= 0) return value > 0 ? 1 : 0.5;
+  return Math.min(1, Math.max(0, 0.5 + Math.log2(Math.max(value, 1e-9) / usual) / 8));
+}
+
+/** Pointing at a piece of evidence lights up the star it is about. */
+type Point = (service: Service | null) => void;
+
+function pointAt(point: Point | undefined, service: string | null | undefined) {
+  return {
+    onMouseEnter: () => point?.(SERVICES.includes(service as Service) ? (service as Service) : null),
+    onMouseLeave: () => point?.(null),
+  };
+}
+
+function SignalRow({ signal, point }: { signal: Signal; point?: Point }) {
+  const at = signal.value === null ? 0 : meterPosition(signal.value, signal.usual);
   return (
-    <li className="signal">
+    <li className="signal" {...pointAt(point, signalService(signal.feature))}>
       <span className="signal-name">{signalName(signal.feature)}</span>
       <span className="signal-value num">
         {signal.value === null ? "stopped reporting" : formatValue(signal.feature, signal.value)}
         <span className="signal-usual"> usually {formatValue(signal.feature, signal.usual)}</span>
+      </span>
+      <span className="meter" aria-hidden="true">
+        <span
+          className={`meter-fill${at < 0.5 ? " is-below" : ""}`}
+          style={{ left: `${Math.min(at, 0.5) * 100}%`, width: `${Math.abs(at - 0.5) * 100}%` }}
+        />
+        <span className="meter-usual" />
+      </span>
+      <span className="signal-ratio num">
+        {signal.value === null ? "no data" : ratioWords(signal.value, signal.usual)}
       </span>
     </li>
   );
@@ -55,7 +93,7 @@ function Report({ text }: { text: string }) {
   );
 }
 
-function Item({ item, start }: { item: LogItem; start?: string }) {
+function Item({ item, start, point }: { item: LogItem; start?: string; point?: Point }) {
   const time = offset(item.at, start);
   const head = (who: string, what: string, tone = "") => (
     <header className={`item-head ${tone}`}>
@@ -72,7 +110,7 @@ function Item({ item, start }: { item: LogItem; start?: string }) {
           <p className="item-lead">These signals moved furthest from normal:</p>
           <ul className="signals">
             {item.signals.slice(0, 4).map((s) => (
-              <SignalRow key={s.feature} signal={s} />
+              <SignalRow key={s.feature} signal={s} point={point} />
             ))}
           </ul>
         </>
@@ -117,7 +155,9 @@ function Item({ item, start }: { item: LogItem; start?: string }) {
       return (
         <>
           {head("Supervisor", "diagnosed the cause", "tone-strong")}
-          <h3 className="diagnosis-title">{headline(item.diagnosis)}</h3>
+          <h3 className="diagnosis-title" {...pointAt(point, item.diagnosis.root_cause_service)}>
+            {headline(item.diagnosis)}
+          </h3>
           <p className="diagnosis-summary">{item.diagnosis.summary}</p>
           <ul className="evidence">
             {item.diagnosis.evidence.map((e, i) => (
@@ -151,7 +191,9 @@ function Item({ item, start }: { item: LogItem; start?: string }) {
       return (
         <>
           {head("Remediation agent", "proposed a fix")}
-          <h3 className="proposal-title">{proposalName(item.proposal)}</h3>
+          <h3 className="proposal-title" {...pointAt(point, item.proposal.service)}>
+            {proposalName(item.proposal)}
+          </h3>
           <p className="item-body">{item.proposal.rationale}</p>
           {item.proposal.cited_incidents.length > 0 && (
             <p className="item-note">Based on {item.proposal.cited_incidents.join(", ")}.</p>
@@ -229,10 +271,14 @@ export function Incident({
   id,
   investigation,
   mode,
+  system,
+  onPoint,
 }: {
   id: string;
   investigation: Investigation | null;
   mode: "live" | "demo" | "unknown";
+  system: SystemView | null;
+  onPoint?: Point;
 }) {
   const logRef = useRef<HTMLOListElement>(null);
   const items = investigation ? buildLog(investigation) : [];
@@ -281,7 +327,7 @@ export function Incident({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: running ? 0 : Math.min(i * 0.05, 0.5) }}
                   >
-                    <Item item={item} start={start} />
+                    <Item item={item} start={start} point={onPoint} />
                   </motion.li>
                 ))}
               </AnimatePresence>
@@ -304,6 +350,7 @@ export function Incident({
         <Panel as="aside" className="dock" delay={0.25} label="Your decision">
           {/* Keyed by status: the choices start afresh once there is a proposal to decide on. */}
           <Decision key={investigation.status} investigation={investigation} mode={mode} />
+          <Recovery investigation={investigation} system={system} />
           <Team investigation={investigation} />
         </Panel>
       )}
@@ -333,6 +380,46 @@ function Team({ investigation }: { investigation: Investigation }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/**
+ * After a fix: the signal that raised the alarm, as it was then and as it is now, with its
+ * last ten minutes. The proof that the restart worked, in one glance.
+ */
+function Recovery({ investigation, system }: { investigation: Investigation; system: SystemView | null }) {
+  const action = investigation.action;
+  if (action?.outcome !== "executed" || action.dry_run || !system?.services) return null;
+  const services = system.services;
+  const signal = (investigation.signals ?? []).find((s) => {
+    const [subject, metric] = s.feature.split(".");
+    const view = SERVICES.includes(subject as Service) ? services[subject as Service] : undefined;
+    return s.value !== null && view?.latest[metric as keyof typeof view.latest] != null;
+  });
+  if (!signal) return null;
+  const [subject, metric] = signal.feature.split(".");
+  const view = services[subject as Service];
+  const now = view.latest[metric as keyof typeof view.latest] as number;
+  return (
+    <section className="recovery" aria-label="Then and now">
+      <h2>Then and now</h2>
+      <p className="recovery-name">{signalName(signal.feature)}</p>
+      <div className="recovery-values">
+        <span>
+          <small>At the alert</small>
+          <b className="num tone-then">{formatValue(signal.feature, signal.value)}</b>
+        </span>
+        <span className="recovery-arrow" aria-hidden="true" />
+        <span>
+          <small>Now</small>
+          <b className="num tone-now">{formatValue(signal.feature, now)}</b>
+        </span>
+      </div>
+      <Sparkline values={view.series[metric] ?? []} tone="aurora" width={320} height={52} />
+      <p className="recovery-note">
+        Usually {formatValue(signal.feature, signal.usual)}. The line is the last ten minutes.
+      </p>
     </section>
   );
 }

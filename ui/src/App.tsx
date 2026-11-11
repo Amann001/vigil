@@ -62,7 +62,7 @@ export function App() {
           system={system}
           focus={focus}
           agents={agents}
-          selected={selected}
+          selected={route.page === "incident" ? hovered : selected}
           cameraOn={cameraOn}
           onSelect={setSelected}
           onHover={setHovered}
@@ -84,7 +84,7 @@ export function App() {
           />
         )}
         {route.page === "incident" && (
-          <Incident key={`incident-${route.id}`} id={route.id} investigation={openInvestigation} mode={mode} />
+          <Incident key={`incident-${route.id}`} id={route.id} investigation={openInvestigation} mode={mode} system={system} onPoint={setHovered} />
         )}
         {route.page === "history" && <History key="history" list={list} />}
         {route.page === "scores" && <Scores key="scores" />}
