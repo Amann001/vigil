@@ -62,51 +62,64 @@ export function Problem() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 2. The team as a deck of cards: stacked at first, then fanned into a ring that turns with the
-//    scroll, so each of the eleven parts comes to the front in turn.
+// 2. The team as a deck of cards: stacked at first, then dealt across the whole width of the page
+//    on a wide, shallow arc that turns with the scroll, so each part comes to the front in turn.
 
 const ORDER = STAGES.flatMap((stage) => stage.parts.map((id) => ({ id, stage: stage.title })));
 const CARDS = ORDER.length;
-const STEP = 360 / CARDS; // degrees between neighbouring cards on the ring
-const SPREAD_UNTIL = 0.16; // share of the section spent fanning the deck out into the ring
-const TURN_UNTIL = 0.94; // the last card reaches the front here, and the ring rests
+const STEP = 21; // degrees between neighbouring cards on the arc
+const SPREAD_UNTIL = 0.16; // share of the section spent dealing the deck out
+const TURN_UNTIL = 0.94; // the last card reaches the front here, and the arc rests
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-/** Where card i sits at scroll progress p: its angle on the ring, and how far the deck has spread. */
+/** Where card i sits at scroll progress p: its angle on the arc (0 is the front, in the middle
+ *  of the page) and how far the deck has been dealt. */
 function pose(i: number, p: number) {
   const spread = ease(clamp(p / SPREAD_UNTIL));
   const turn = clamp((p - SPREAD_UNTIL) / (TURN_UNTIL - SPREAD_UNTIL)) * STEP * (CARDS - 1);
-  const raw = i * STEP * spread - turn;
-  const angle = ((((raw + 180) % 360) + 360) % 360) - 180; // -180..180, 0 is the front
-  return { angle, spread };
+  return { angle: i * STEP * spread - turn, spread };
 }
 
 function frontCard(p: number): number {
   return Math.round(clamp((p - SPREAD_UNTIL) / (TURN_UNTIL - SPREAD_UNTIL)) * (CARDS - 1));
 }
 
-function DeckCard({ index, progress, radius, front }: { index: number; progress: MotionValue<number>; radius: number; front: boolean }) {
+/** The arc: as wide as the page, so the cards run from edge to edge, and shallow, so the ones
+ *  at the sides lean back without shrinking away to nothing. */
+interface Arc {
+  wide: number;
+  deep: number;
+}
+
+function arcFor(width: number): Arc {
+  const wide = width * (width < 700 ? 0.78 : width < 1300 ? 0.63 : 0.56);
+  return { wide, deep: wide * 0.55 };
+}
+
+function DeckCard({ index, progress, arc, front }: { index: number; progress: MotionValue<number>; arc: Arc; front: boolean }) {
   const { id, stage } = ORDER[index];
   const part = PARTS[id];
   const transform = useTransform(progress, (p) => {
     const { angle, spread } = pose(index, p);
+    const rad = (angle * Math.PI) / 180;
+    const x = arc.wide * Math.sin(rad);
+    const z = arc.deep * (Math.cos(rad) - 1);
     // While stacked, each card sits a little higher and askew, like a squared-up deck in a hand.
     const tilt = (1 - spread) * (index - (CARDS - 1) / 2) * 1.8;
     const lift = (1 - spread) * -index * 2.5;
-    // The ring's centre moves back by its radius, so the card at the front stays its own size.
-    const r = radius * spread;
-    return `translateZ(${-r}px) rotateY(${angle}deg) translateZ(${r}px) translateY(${lift}px) rotateZ(${tilt}deg)`;
+    return `translate3d(${x}px, ${lift}px, ${z}px) rotateY(${angle * 0.75}deg) rotateZ(${tilt}deg)`;
   });
   const opacity = useTransform(progress, (p) => {
     const { angle, spread } = pose(index, p);
-    const facing = (Math.cos((angle * Math.PI) / 180) + 1) / 2;
-    return spread < 0.05 ? 1 : 0.18 + 0.82 * facing ** 1.6;
+    if (spread < 0.05) return 1;
+    // Full strength across the page, fading as a card turns past the edge.
+    return clamp(1 - (Math.abs(angle) - 70) / 40) * (0.55 + 0.45 * Math.cos((Math.min(Math.abs(angle), 90) * Math.PI) / 180));
   });
   const zIndex = useTransform(progress, (p) => {
     const { angle } = pose(index, p);
-    return Math.round((180 - Math.abs(angle)) * 10) + (CARDS - index);
+    return Math.round((200 - Math.abs(angle)) * 10) + (CARDS - index);
   });
   return (
     <motion.article
@@ -129,11 +142,9 @@ export function Team() {
   const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 24, mass: 0.6 });
   const [front, setFront] = useState(0);
   useMotionValueEvent(progress, "change", (p) => setFront(frontCard(p)));
-  const [radius, setRadius] = useState(440);
+  const [arc, setArc] = useState<Arc>(() => arcFor(window.innerWidth));
   useEffect(() => {
-    // Wide enough that eleven cards stand edge to edge round the ring, with a small gap.
-    const measure = () => setRadius(window.innerWidth < 700 ? 330 : 440);
-    measure();
+    const measure = () => setArc(arcFor(window.innerWidth));
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
@@ -165,7 +176,7 @@ export function Team() {
         <div className="deck" aria-live="polite">
           <div className="deck-ring">
             {ORDER.map(({ id }, i) => (
-              <DeckCard key={id} index={i} progress={progress} radius={radius} front={i === front} />
+              <DeckCard key={id} index={i} progress={progress} arc={arc} front={i === front} />
             ))}
           </div>
         </div>
@@ -304,86 +315,70 @@ function TerminalPlayer({ inv, lines }: { inv: Investigation; lines: Line[] }) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 4. The architecture, drawn by the scroll.
+// 4. Four steps, every time: one line that fills as the page scrolls, lighting each step.
 
-const NODES = [
-  { id: "shop", x: 70, y: 210, label: "The shop", sub: "4 services" },
-  { id: "prom", x: 230, y: 110, label: "Prometheus", sub: "every 5 s" },
-  { id: "logs", x: 230, y: 310, label: "JSON logs", sub: "every request" },
-  { id: "detect", x: 400, y: 110, label: "Detector", sub: "robust z-score" },
-  { id: "queue", x: 560, y: 110, label: "Job queue", sub: "Postgres" },
-  { id: "agents", x: 560, y: 310, label: "Agent team", sub: "LangGraph" },
-  { id: "memory", x: 400, y: 310, label: "Memory", sub: "pgvector" },
-  { id: "you", x: 760, y: 310, label: "You", sub: "approve or not" },
-  { id: "guard", x: 760, y: 110, label: "Guardrails", sub: "plain code" },
-  { id: "report", x: 930, y: 210, label: "Report", sub: "and audit log" },
-] as const;
-
-const WIRES = [
-  "M110 200 C160 150 180 120 200 115",
-  "M110 220 C160 270 180 300 200 305",
-  "M262 110 L366 110",
-  "M434 110 L526 110",
-  "M560 132 L560 288",
-  "M526 310 L434 310",
-  "M262 310 C330 360 470 360 530 325",
-  "M594 310 L726 310",
-  "M760 288 L760 132",
-  "M794 120 C860 140 880 180 900 200",
-  "M726 100 C600 20 200 20 92 190",
+const STEPS = [
+  {
+    title: "Notice",
+    text: "A model that knows what normal looks like spots readings that are not.",
+    icon: "M3 12h4l2-6 4 12 2-6h6",
+  },
+  {
+    title: "Investigate",
+    text: "AI agents read the logs, the metrics and what changed, all at once.",
+    icon: "M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zM15.5 15.5 21 21",
+  },
+  {
+    title: "Decide",
+    text: "You see the cause and the evidence, and say yes or no to the fix.",
+    icon: "M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM4 21c1.5-4 4.5-6 8-6s6.5 2 8 6",
+  },
+  {
+    title: "Fix",
+    text: "Safe, checked code applies it, and the report writes itself.",
+    icon: "M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM8.5 12l2.5 2.5 4.5-5",
+  },
 ];
 
-/** One connection, drawn in its turn as the diagram scrolls into view. */
-function Wire({ d, index, progress }: { d: string; index: number; progress: MotionValue<number> }) {
-  const pathLength = useTransform(progress, [index / WIRES.length, (index + 1) / WIRES.length], [0, 1]);
-  return <motion.path d={d} className={`arch-wire${index === WIRES.length - 1 ? " is-return" : ""}`} style={{ pathLength }} />;
-}
-
-function Node({ node, progress, at }: { node: (typeof NODES)[number]; progress: MotionValue<number>; at: number }) {
-  const opacity = useTransform(progress, [at - 0.06, at], [0.15, 1]);
-  const scale = useTransform(progress, [at - 0.06, at], [0.85, 1]);
+function Step({ step, index, progress }: { step: (typeof STEPS)[number]; index: number; progress: MotionValue<number> }) {
+  const at = (index + 0.5) / STEPS.length;
+  const lit = useTransform(progress, [at - 0.12, at], [0, 1]);
+  const opacity = useTransform(lit, [0, 1], [0.35, 1]);
+  const y = useTransform(lit, [0, 1], [18, 0]);
   return (
-    <motion.g style={{ opacity, scale, transformOrigin: `${node.x}px ${node.y}px` }}>
-      <circle cx={node.x} cy={node.y} r={node.id === "you" ? 30 : 24} className={`arch-node node-${node.id}`} />
-      <text x={node.x} y={node.y + 50} className="arch-label">
-        {node.label}
-      </text>
-      <text x={node.x} y={node.y + 68} className="arch-sub">
-        {node.sub}
-      </text>
-    </motion.g>
+    <motion.li className="step" style={{ opacity, y }}>
+      <span className="step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <motion.path d={step.icon} style={{ pathLength: lit }} />
+        </svg>
+      </span>
+      <span className="step-number num">{index + 1}</span>
+      <h3>{step.title}</h3>
+      <p>{step.text}</p>
+    </motion.li>
   );
 }
 
-export function Architecture() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 75%", "end 60%"] });
-  const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 26 });
+export function Steps() {
+  const ref = useRef<HTMLOListElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 85%", "end 45%"] });
+  const progress = useSpring(scrollYProgress, { stiffness: 100, damping: 26 });
+  const fill = useTransform(progress, [0, 1], ["0%", "100%"]);
   return (
-    <section className="chapter story-arch" aria-label="How the parts connect">
-      <h2 className="section-title">From a metric to a fix, and back</h2>
-      <p className="section-lede">
-        Readings flow in, an alert becomes a job, the agents investigate with memory beside them, and nothing reaches the shop
-        except through you and the guardrails.
-      </p>
-      <div ref={ref} className="arch">
-        <svg viewBox="0 0 1000 420" role="img" aria-label="The shop sends metrics and logs; the detector puts alerts on a queue; the agents investigate with memory; you approve; the guardrails act on the shop and write the report.">
-          <defs>
-            {/* Measured across the whole diagram: measured on each line, a straight line's box has no
-                height and the browser draws nothing. */}
-            <linearGradient id="wire" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1000" y2="0">
-              <stop offset="0" stopColor="#8fb7ff" />
-              <stop offset="1" stopColor="#6fe3c8" />
-            </linearGradient>
-          </defs>
-          {WIRES.map((d, i) => (
-            <Wire key={i} d={d} index={i} progress={progress} />
-          ))}
-          {NODES.map((node, i) => (
-            <Node key={node.id} node={node} progress={progress} at={Math.min(1, (i + 0.6) / NODES.length)} />
-          ))}
-        </svg>
-      </div>
+    <section className="chapter chapter-steps" aria-label="How it works, in four steps">
+      <h2 className="section-title">Four steps, every time</h2>
+      <p className="section-lede">From the first strange reading to the fix, in about two minutes and one click.</p>
+      <ol ref={ref} className="steps">
+        <span className="steps-line" aria-hidden="true">
+          <motion.i style={{ width: fill }} />
+        </span>
+        {STEPS.map((step, i) => (
+          <Step key={step.title} step={step} index={i} progress={progress} />
+        ))}
+      </ol>
+      <a className="link-button" href={href({ page: "how" })}>
+        See every part of each step
+      </a>
     </section>
   );
 }

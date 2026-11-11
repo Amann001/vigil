@@ -75,24 +75,27 @@
 /* The stage: a perspective so the ring has depth, tipped slightly so its top shows. */
 .deck {
   position: relative;
-  perspective: 1500px;
-  perspective-origin: 50% 30%;
+  perspective: 1800px;
+  perspective-origin: 50% 35%;
   display: grid;
   place-items: center;
 }
 
+/* Cards grow with the page, so on a wide screen the deck still fills it. */
 .deck-ring {
+  /* The card's width; its type is sized from it, so a bigger card has bigger words. */
+  --card-w: clamp(200px, 15vw, 300px);
   position: relative;
-  width: 230px;
-  height: 320px;
+  width: var(--card-w);
+  aspect-ratio: 23 / 32;
   transform-style: preserve-3d;
-  transform: rotateX(-6deg);
+  transform: rotateX(-5deg);
 }
 
 .deck-card {
   position: absolute;
   inset: 0;
-  padding: 22px 22px 24px;
+  padding: calc(var(--card-w) * 0.095);
   border-radius: 20px;
   display: grid;
   align-content: start;
@@ -119,7 +122,7 @@
 
 .deck-index {
   font-family: var(--display);
-  font-size: 4.6rem;
+  font-size: calc(var(--card-w) * 0.3);
   font-weight: 800;
   line-height: 0.85;
   letter-spacing: -0.07em;
@@ -150,14 +153,14 @@
 
 .deck-stage {
   margin-top: auto;
-  padding-top: 70px;
+  padding-top: calc(var(--card-w) * 0.28);
   color: var(--sodium);
-  font-size: var(--step--1);
+  font-size: max(12px, calc(var(--card-w) * 0.048));
   font-weight: 600;
 }
 
 .deck-card h3 {
-  font-size: 1.7rem;
+  font-size: calc(var(--card-w) * 0.105);
   letter-spacing: -0.045em;
   line-height: 1.05;
 }
@@ -165,6 +168,7 @@
 .deck-card p {
   color: #c9d1f0;
   line-height: 1.5;
+  font-size: max(13px, calc(var(--card-w) * 0.06));
 }
 
 .deck-card.kind-human {
@@ -384,73 +388,101 @@
   }
 }
 
-/* 4. The architecture */
-.arch {
+/* 4. Four steps: one line fills, each step lights up as it is reached */
+.steps {
+  position: relative;
+  list-style: none;
+  margin: 34px 0 10px;
+  padding: 0;
   width: 100%;
-  max-width: 1100px;
-  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px;
 }
 
-.arch svg {
-  width: 100%;
-  height: auto;
-  overflow: visible;
+/* The line runs through the middle of the icons. */
+.steps-line {
+  position: absolute;
+  top: 36px;
+  left: 36px;
+  right: 12%;
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
 }
 
-.arch-wire {
+.steps-line i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--sodium), var(--aurora));
+  box-shadow: 0 0 12px rgb(111 227 200 / 0.45);
+}
+
+.step {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.step-icon {
+  position: relative;
+  z-index: 1;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--deep);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 0 0 8px rgb(4 7 20 / 0.9);
+}
+
+.step-icon svg {
+  width: 30px;
+  height: 30px;
   fill: none;
-  stroke: url(#wire);
-  stroke-width: 2;
-  stroke-linecap: round;
-  /* No glow filter: a filter on a perfectly straight line has a zero-height box, and the
-     browser then draws nothing at all. */
-}
-
-.arch-wire.is-return {
-  stroke: var(--aurora);
-  stroke-dasharray: 2 7;
-  stroke-width: 1.6;
-  opacity: 0.8;
-}
-
-.arch-node {
-  fill: var(--deep);
   stroke: var(--starlight);
-  stroke-width: 1.5;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.node-detect,
-.node-you {
+.step:nth-child(4) .step-icon svg {
   stroke: var(--sodium);
-  fill: rgb(255 165 61 / 0.12);
 }
 
-.node-guard,
-.node-report {
+.step:nth-child(5) .step-icon svg {
   stroke: var(--aurora);
-  fill: rgb(111 227 200 / 0.1);
 }
 
-.node-agents,
-.node-memory {
-  stroke: #8fb7ff;
-  fill: rgb(143 183 255 / 0.12);
+.step-number {
+  margin-top: 14px;
+  color: var(--sodium);
+  font-size: var(--step--1);
+  font-weight: 600;
 }
 
-.arch-label {
-  fill: var(--starlight);
-  font-family: var(--display);
-  font-size: 16px;
-  font-weight: 700;
-  text-anchor: middle;
-  letter-spacing: -0.02em;
+.step h3 {
+  font-size: var(--step-3);
+  letter-spacing: -0.045em;
 }
 
-.arch-sub {
-  fill: var(--haze);
-  font-family: var(--text);
-  font-size: 12.5px;
-  text-anchor: middle;
+.step p {
+  color: var(--haze);
+  line-height: 1.6;
+  max-width: 22em;
+}
+
+@media (max-width: 760px) {
+  .steps {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+
+  .steps-line {
+    display: none;
+  }
 }
 
 /* 5. The numbers */
@@ -592,8 +624,7 @@
   }
 
   .deck-ring {
-    width: 190px;
-    height: 270px;
+    --card-w: 180px;
   }
 }
 
@@ -616,12 +647,7 @@
   }
 
   .deck-ring {
-    width: 210px;
-    height: 290px;
-  }
-
-  .deck-stage {
-    padding-top: 48px;
+    --card-w: clamp(190px, 14vw, 250px);
   }
 
   .terminal {
