@@ -2,6 +2,8 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } fr
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RisingText } from "../components/Bits";
+import { useMode } from "../lib/api";
+import { LIVE_URL } from "../lib/live";
 import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import { homeScroll } from "../lib/scroll";
@@ -119,6 +121,7 @@ export function Home({
   onPastHero: (past: boolean) => void;
 }) {
   const [film, setFilm] = useState(false);
+  const mode = useMode();
   const { scrollY, scrollYProgress } = useScroll();
   useMotionValueEvent(scrollY, "change", (y) => onPastHero(y > window.innerHeight * 0.55));
   // The sky turns and the camera rises as the story goes on (read by the 3D scene each frame).
@@ -169,7 +172,15 @@ export function Home({
             Play the film, 2 min
           </button>
         </motion.div>
-        <p className="hero-hint">Every star on the right is a live service. Click one.</p>
+        <p className="hero-hint">
+          Every star on the right is a service of the shop. Click one.
+          {LIVE_URL && mode === "demo" && (
+            <>
+              {" "}
+              This page replays a recorded incident; <a href={LIVE_URL}>the real system is running here</a>.
+            </>
+          )}
+        </p>
         <span className="scroll-cue" aria-hidden="true">
           <i />
         </span>

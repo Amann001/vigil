@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test:e2e": "node --test --test-concurrency=1 tests/site.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

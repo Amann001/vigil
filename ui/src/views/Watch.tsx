@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Panel, RisingText } from "../components/Bits";
 import { BreakSomething } from "../components/BreakSomething";
 import { ReplayBar } from "../components/ReplayBar";
+import { LIVE_URL } from "../lib/live";
 import { now } from "../lib/clock";
 import { href } from "../lib/route";
 import { diagnosisOf, eventsOf, serviceOf, type Situation } from "../lib/state";
@@ -285,6 +286,11 @@ function ReplayGuide({ kind }: { kind: Situation["kind"] }) {
         </motion.div>
       </AnimatePresence>
       <ReplayBar />
+      {LIVE_URL && (
+        <a className="guide-live" href={LIVE_URL}>
+          Watch the real system, running now
+        </a>
+      )}
     </div>
   );
 }

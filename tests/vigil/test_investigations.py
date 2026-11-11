@@ -308,3 +308,15 @@ def test_an_alarm_about_a_service_caught_up_in_a_paged_incident_is_not_paged_aga
     paged = [pager.new_alert(detector, features) for _ in range(3)]
 
     assert [alert_service(a) for a in paged if a is not None] == ["inventory"]
+
+
+def test_the_pager_stops_at_its_daily_limit():
+    index, features, detector = _watched(["payments.latency_p95", "inventory.error_ratio"])
+    features.iloc[100:120, 0] = 2.0  # payments: one incident
+    features.iloc[160:, 1] = 0.9  # inventory: another, which would normally be paged
+    pager = Pager(since=index[0], daily_limit=1)
+
+    paged = [pager.new_alert(detector, features) for _ in range(4)]
+
+    assert [alert_service(a) for a in paged if a is not None] == ["payments"]
+    assert pager.skipped == 1

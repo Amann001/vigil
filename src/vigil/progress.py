@@ -8,10 +8,11 @@ shown.
 """
 
 import json
-import os
 from pathlib import Path
 
 import pandas as pd
+
+from vigil.archive import write_text
 
 Event = dict
 
@@ -70,11 +71,8 @@ class Timeline:
         return self.data["events"]
 
     def _write(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        # Write then rename, so a reader never sees half a file.
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(self.data, default=str), encoding="utf-8")
-        os.replace(temporary, self.path)
+        # Written whole then renamed (a reader never sees half a file), and archived.
+        write_text(self.path, json.dumps(self.data, default=str))
 
 
 def follow(graph, graph_input, config: dict, context, timeline: Timeline) -> dict:

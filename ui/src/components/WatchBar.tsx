@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { now as clockNow } from "../lib/clock";
+import { LIVE_URL } from "../lib/live";
 import { useSound } from "../lib/sound";
 import { OPEN_PALETTE } from "./CommandPalette";
 import { href, type Route } from "../lib/route";
@@ -239,9 +240,15 @@ export function WatchBar({
           {now.toISOString().slice(11, 16)} UTC
         </span>
       </div>
-      <span className={`mode mode-${mode}`} title={mode === "demo" ? "No API found: replaying a recorded incident" : "Connected to Vigil"}>
-        {mode === "demo" ? "Replay" : mode === "live" ? "Live" : "…"}
-      </span>
+      {mode === "demo" && LIVE_URL ? (
+        <a className="mode mode-demo mode-link" href={LIVE_URL} title="This is a replay of a real incident. Open the system running live.">
+          Replay, see it live
+        </a>
+      ) : (
+        <span className={`mode mode-${mode}`} title={mode === "demo" ? "No API found: replaying a recorded incident" : "Connected to Vigil"}>
+          {mode === "demo" ? "Replay" : mode === "live" ? "Live" : "…"}
+        </span>
+      )}
     </header>
   );
 }

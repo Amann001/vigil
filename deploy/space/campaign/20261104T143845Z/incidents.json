@@ -1,0 +1,111 @@
+[
+  {
+    "id": 1,
+    "service": "storefront",
+    "fault": "leak",
+    "settings": {
+      "leak_mb_per_second": 7.4,
+      "leak_limit_mb": 400.0
+    },
+    "start": "2026-11-04T16:13:14.542000+00:00",
+    "end": "2026-11-04T16:17:36.850000+00:00"
+  },
+  {
+    "id": 2,
+    "service": "orders",
+    "fault": "errors",
+    "settings": {
+      "error_rate": 0.51
+    },
+    "start": "2026-11-04T16:24:02.930000+00:00",
+    "end": "2026-11-04T16:26:22.930000+00:00"
+  },
+  {
+    "id": 3,
+    "service": "payments",
+    "fault": "crash",
+    "settings": {},
+    "start": "2026-11-04T16:32:10.851000+00:00",
+    "end": "2026-11-04T16:36:39.170000+00:00"
+  },
+  {
+    "id": 4,
+    "service": "inventory",
+    "fault": "latency",
+    "settings": {
+      "latency_seconds": 0.82
+    },
+    "start": "2026-11-04T16:43:22.294000+00:00",
+    "end": "2026-11-04T16:47:24.294000+00:00"
+  },
+  {
+    "id": 5,
+    "service": "inventory",
+    "fault": "crash",
+    "settings": {},
+    "start": "2026-11-04T16:52:24.656000+00:00",
+    "end": "2026-11-04T16:56:35.954000+00:00"
+  },
+  {
+    "id": 6,
+    "service": "orders",
+    "fault": "latency",
+    "settings": {
+      "latency_seconds": 1.47
+    },
+    "start": "2026-11-04T17:01:43.675000+00:00",
+    "end": "2026-11-04T17:04:08.675000+00:00"
+  },
+  {
+    "id": 7,
+    "service": "payments",
+    "fault": "errors",
+    "settings": {
+      "error_rate": 0.52
+    },
+    "start": "2026-11-04T17:11:00.626000+00:00",
+    "end": "2026-11-04T17:13:56.626000+00:00"
+  },
+  {
+    "id": 8,
+    "service": "storefront",
+    "fault": "leak",
+    "settings": {
+      "leak_mb_per_second": 5.9,
+      "leak_limit_mb": 400.0
+    },
+    "start": "2026-11-04T17:19:25.144000+00:00",
+    "end": "2026-11-04T17:22:50.710000+00:00"
+  },
+  {
+    "id": 9,
+    "service": "storefront",
+    "fault": "leak",
+    "settings": {
+      "leak_mb_per_second": 13.4,
+      "leak_limit_mb": 400.0
+    },
+    "start": "2026-11-04T17:30:21.984000+00:00",
+    "end": "2026-11-04T17:33:54.299000+00:00"
+  },
+  {
+    "id": 10,
+    "service": "payments",
+    "fault": "errors",
+    "settings": {
+      "error_rate": 0.36
+    },
+    "start": "2026-11-04T17:40:08.333000+00:00",
+    "end": "2026-11-04T17:45:05.333000+00:00"
+  },
+  {
+    "id": 11,
+    "service": "orders",
+    "fault": "latency",
+    "settings": {
+      "latency_seconds": 1.65
+    },
+    "start": "2026-11-04T17:52:18.578000+00:00",
+    "end": "2026-11-04T17:56:02.578000+00:00"
+  }
+]

@@ -437,3 +437,12 @@
     padding: 4px 0;
   }
 }
+
+.mode-link {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.mode-link:hover {
+  background: rgb(255 165 61 / 0.12);
+}

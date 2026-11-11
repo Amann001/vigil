@@ -69,6 +69,12 @@ jobs:
       - name: Type-check and build
         run: npm run build
 
+      # The built site in a real Chrome (preinstalled on the runner), against the replay.
+      - name: Browser tests
+        run: npm run test:e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -95,3 +101,40 @@ jobs:
           curl -sf http://127.0.0.1:8030/health
           docker rm -f api
           docker image ls vigil:ci
+
+  # The whole system in one container, as the public live demo runs it: build it, start it,
+  # and check that the shop is up, Prometheus is scraped, the watcher is reading it and the war
+  # room is served. No model keys or database here, so no investigation runs.
+  space:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/space/Dockerfile
+          load: true
+          tags: vigil-space:ci
+          cache-from: type=gha,scope=space
+          cache-to: type=gha,mode=max,scope=space
+
+      - name: Start it and check every part
+        run: |
+          docker run -d --name space -p 8030:8030 vigil-space:ci
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8030/health && break; sleep 2; done
+          curl -sf http://127.0.0.1:8030/health
+          # The shop and Prometheus: the system view goes online once metrics arrive.
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8030/system | grep -q '"online":true' && break; sleep 3
+          done
+          curl -sf http://127.0.0.1:8030/system | python3 -c "import json,sys; s=json.load(sys.stdin); assert s['online'], s; print('services:', sorted(s['services']))"
+          # The war room, at one of its page addresses.
+          curl -sf http://127.0.0.1:8030/war-room | grep -q '<div id="root">'
+          curl -sf http://127.0.0.1:8030/config | python3 -c "import json,sys; print('actions:', [a['name'] for a in json.load(sys.stdin)['actions']])"
+          docker logs space 2>&1 | grep -q "Watching" && echo "watcher running"
+          docker logs space 2>&1 | tail -30
+          docker rm -f space

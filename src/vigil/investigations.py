@@ -26,6 +26,7 @@ from vigil import tracing
 from vigil.actions import AuditLog, Executor
 from vigil.agents import Context, build_graph
 from vigil.alerts import Alert
+from vigil.archive import write_text
 from vigil.db import direct
 from vigil.evidence import Evidence
 from vigil.memory import Memory
@@ -80,9 +81,8 @@ def _config(investigation_id: str) -> dict:
 
 
 def _write_report(report: dict, reports_dir: Path) -> None:
-    reports_dir.mkdir(parents=True, exist_ok=True)
     path = reports_dir / f"{report['id']}.json"
-    path.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
+    write_text(path, json.dumps(report, indent=2, default=str))
 
 
 def investigate(
@@ -214,9 +214,7 @@ def review(
     }
     _write_report(report, reports_dir)
     if report["incident_report"]:
-        (reports_dir / f"{investigation_id}.md").write_text(
-            report["incident_report"], encoding="utf-8"
-        )
+        write_text(reports_dir / f"{investigation_id}.md", report["incident_report"])
     return report
 
 

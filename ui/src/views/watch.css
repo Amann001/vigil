@@ -453,3 +453,12 @@
   }
 }
 
+
+.guide-live {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--aurora);
+  font-size: var(--step--1);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}

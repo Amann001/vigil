@@ -94,12 +94,15 @@ class Player {
   /** The story's turning points, read from the tape itself. */
   private findMarkers(): Marker[] {
     const first = (test: (f: Frame) => boolean) => this.tape.frames.find(test)?.t;
-    const statuses = (f: Frame) => Object.values(f.details ?? {}).map((i) => i.status);
+    // Only the live incident counts: the recording also holds older replays, one of them
+    // waiting for review from the very first frame, which put "Diagnosis" at the start.
+    const live = (f: Frame) => Object.values(f.details ?? {}).filter((i) => i.id.startsWith("live-"));
+    const statuses = (f: Frame) => live(f).map((i) => i.status);
     const found: [number | undefined | null, string][] = [
       [START_AT, "All quiet"],
       [first((f) => (f.live ?? []).some((i) => i.status === "investigating")), "Alert"],
       [first((f) => statuses(f).includes("awaiting review")), "Diagnosis"],
-      [first((f) => Object.values(f.details ?? {}).some((i) => i.action?.outcome === "executed")), "Fixed"],
+      [first((f) => live(f).some((i) => i.action?.outcome === "executed")), "Fixed"],
     ];
     return found.flatMap(([t, label]) => (t === undefined || t === null ? [] : [{ t, label }]));
   }

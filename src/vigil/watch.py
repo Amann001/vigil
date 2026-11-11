@@ -5,6 +5,7 @@ POLL_SECONDS the watcher fetches the last few minutes of metrics from Prometheus
 fires, the agents investigate the live shop at that moment and the diagnosis waits for review.
 """
 
+import os
 import time
 from collections.abc import Callable
 
@@ -28,6 +29,7 @@ LOOKBACK = pd.Timedelta("3min")  # enough for the 30 s rate windows and 3 alarm 
 # re-paged a payments incident still awaiting review and swallowed an inventory incident that
 # began during it.)
 SAME_SERVICE_COOLDOWN = pd.Timedelta("30min")
+DAY = pd.Timedelta("1D")
 
 
 def trained_detector() -> AlertDetector:
@@ -64,9 +66,13 @@ class Pager:
     incident's unusual signals: a failing inventory makes orders fail too, and the alarm that
     follows a few seconds later about orders is the same incident, not a new one."""
 
-    def __init__(self, since: pd.Timestamp) -> None:
+    def __init__(self, since: pd.Timestamp, daily_limit: int | None = None) -> None:
         self.seen_until = since  # alarms that started before this have been considered
         self.paged: list[tuple[pd.Timestamp, set[str]]] = []
+        # At most this many investigations in any 24 hours. Each one spends free model quota;
+        # a public host must not let a run of alarms use up a day's worth in an hour.
+        self.daily_limit = daily_limit
+        self.skipped = 0
 
     def new_alert(self, detector: AlertDetector, features: pd.DataFrame) -> Alert | None:
         for alert in detector.alerts(features):
@@ -79,6 +85,10 @@ class Pager:
                 for at, services in self.paged
             ):
                 continue  # part of an incident already paged, still unresolved
+            recent = [at for at, _ in self.paged if alert.detected_at - at < DAY]
+            if self.daily_limit is not None and len(recent) >= self.daily_limit:
+                self.skipped += 1
+                continue
             self.paged.append((alert.detected_at, alert_services(alert)))
             return alert
         return None
@@ -94,12 +104,20 @@ def watch(
 ) -> None:
     """With a queue, each alert becomes a job for the workers and watching carries on at
     once; without one, the watcher investigates each alert itself before watching again."""
-    pager = Pager(since=pd.Timestamp.now(tz="UTC"))
+    limit = os.environ.get("VIGIL_DAILY_INVESTIGATIONS")
+    pager = Pager(since=pd.Timestamp.now(tz="UTC"), daily_limit=int(limit) if limit else None)
+    skipped = 0
     handled = 0
     while max_alerts is None or handled < max_alerts:
         now = pd.Timestamp.now(tz="UTC")
         features = fetch_features((now - LOOKBACK).to_pydatetime(), now.to_pydatetime(), client)
         alert = pager.new_alert(detector, features)
+        if pager.skipped > skipped:
+            skipped = pager.skipped
+            print(
+                f"Alarm not investigated: the daily limit of {pager.daily_limit} is reached.",
+                flush=True,
+            )
         if alert is None:
             time.sleep(POLL_SECONDS)
             continue

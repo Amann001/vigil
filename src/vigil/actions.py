@@ -11,6 +11,7 @@ Replayed incidents use DryRunExecutor, which records what would have been done.
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
@@ -21,7 +22,9 @@ from pydantic import BaseModel, Field
 
 from shop.config import DATA_DIR
 from shop.control import CONTROL_PORT
+from vigil.archive import archive
 
+log = logging.getLogger(__name__)
 AUDIT_LOG = DATA_DIR / "actions" / "audit.jsonl"
 RESTART_COOLDOWN = pd.Timedelta("15min")
 RESTART_TIMEOUT_SECONDS = 60
@@ -75,6 +78,12 @@ class AuditLog:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as file:
             file.write(json.dumps(entry, default=str) + "\n")
+        # The whole log goes to the archive (when it is on): it is small, and append-only.
+        if (store := archive()) is not None:
+            try:
+                store.save(self.path, self.path.read_text(encoding="utf-8"))
+            except Exception as error:  # noqa: BLE001 - a database failure is only logged
+                log.warning("Could not archive the audit log: %s", error)
 
     def entries(self) -> list[dict]:
         if not self.path.exists():

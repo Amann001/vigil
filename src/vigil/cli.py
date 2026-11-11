@@ -158,6 +158,13 @@ def main(argv: list[str] | None = None) -> None:
     verdict.add_argument("--by", default=getpass.getuser(), help="who is approving")
     args = parser.parse_args(argv)
 
+    if args.command in ("up", "api", "watch", "worker"):
+        from vigil.archive import restore
+
+        # On a fresh cloud host, put back the reports and audit log kept in the database.
+        if restored := restore():
+            print(f"Restored {restored} records from the database archive.", flush=True)
+
     if args.command == "up":
         _up()
     elif args.command == "watch":

@@ -461,3 +461,8 @@ body:has(.home) {
     background: rgb(4 7 20 / 0.82);
   }
 }
+
+.hero-hint a {
+  color: var(--aurora);
+  text-underline-offset: 3px;
+}
