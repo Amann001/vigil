@@ -6,6 +6,18 @@
 
 .constellation canvas {
   touch-action: pan-y;
+  transition: opacity 1.2s var(--ease-out), filter 1.2s var(--ease-out);
+}
+
+/* Behind a page of text the sky steps back: dimmer and softer, still moving. */
+.constellation.is-dim canvas {
+  opacity: 0.5;
+  filter: blur(1.5px) saturate(0.8);
+}
+
+.constellation.is-dim .star-labels {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .star-labels {
@@ -18,6 +30,7 @@
 
 .star-labels.is-hidden {
   opacity: 0;
+  visibility: hidden;
   transition: none;
 }
 
@@ -29,6 +42,11 @@
 }
 
 .star-tag {
+  pointer-events: auto;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 4px 10px 6px;
+  border-radius: 12px;
   display: grid;
   justify-items: center;
   gap: 1px;
@@ -40,8 +58,7 @@
 .star-name {
   font-family: var(--display);
   font-size: 15px;
-  font-weight: 560;
-  font-stretch: 88%;
+  font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--starlight);
   text-shadow: 0 0 18px rgb(4 7 20 / 0.9);
@@ -66,6 +83,37 @@
   color: var(--aurora);
 }
 
+/* Pointing at a star or its name says what a click does. */
+.star-open {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--starlight);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.25s, transform 0.35s var(--ease-out);
+}
+
+.star-tag:hover,
+.star-tag:focus-visible,
 .star-tag.is-selected {
   transform: translateY(12px);
+  background: rgb(4 7 20 / 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.star-tag:hover .star-open,
+.star-tag:focus-visible .star-open,
+.star-tag.is-selected .star-open {
+  opacity: 1;
+  transform: none;
+}
+
+.star-tag:focus-visible {
+  outline: 2px solid var(--starlight);
+  outline-offset: 2px;
+}
+
+/* The star whose page is open: no "Open" hint, it is already open. */
+.star-tag.is-here .star-open {
+  display: none;
 }

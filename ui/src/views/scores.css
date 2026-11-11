@@ -13,7 +13,6 @@
 
 .hidden-test h1 {
   font-size: var(--step-6);
-  font-stretch: 76%;
   letter-spacing: -0.04em;
   line-height: 0.92;
   max-width: 13ch;
@@ -67,7 +66,6 @@
 .ablation h2,
 .facts h2 {
   font-size: var(--step-4);
-  font-stretch: 82%;
 }
 
 .bars {
@@ -91,7 +89,7 @@
 }
 
 .bar-label strong {
-  font-weight: 580;
+  font-weight: 700;
 }
 
 .bar-label span {
@@ -137,8 +135,7 @@
 .bar-right {
   font-family: var(--display);
   font-size: var(--step-2);
-  font-weight: 620;
-  font-stretch: 85%;
+  font-weight: 700;
 }
 
 .bar-unsafe {
@@ -183,8 +180,7 @@
 .fact dt {
   font-family: var(--display);
   font-size: var(--step-3);
-  font-stretch: 82%;
-  font-weight: 620;
+  font-weight: 700;
   margin-bottom: 6px;
 }
 

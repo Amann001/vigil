@@ -68,6 +68,26 @@ export function outcomeName(outcome: string | null | undefined, dryRun?: boolean
   }
 }
 
+/** Who calls whom in the shop (the same dependencies the metrics follow). */
+export const calls: Record<string, string[]> = {
+  storefront: ["orders", "inventory"],
+  orders: ["payments", "inventory"],
+  payments: [],
+  inventory: [],
+};
+
+/** What each service does, in a sentence, for its own page. */
+export const serviceStory: Record<string, string> = {
+  storefront:
+    "The front door. It serves the product pages and takes every checkout, then hands the order on. When anything behind it struggles, customers feel it here first.",
+  orders:
+    "The middle of every sale. It reserves the stock, charges the card, and rolls both back if either fails, so a problem here spreads both ways.",
+  payments:
+    "A simulated card processor, with realistic latency and the occasional declined card. Slow payments make every checkout slow.",
+  inventory:
+    "Keeps the stock levels and restocks them on a schedule. Orders and the storefront both ask it before anything is sold.",
+};
+
 export const agentName: Record<string, string> = {
   plan: "Supervisor",
   metrics: "Metrics",

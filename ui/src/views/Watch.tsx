@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { Panel, RisingText, Sparkline } from "../components/Bits";
+import { Panel, RisingText } from "../components/Bits";
 import { BreakSomething } from "../components/BreakSomething";
 import { now } from "../lib/clock";
 import { href } from "../lib/route";
@@ -9,12 +9,10 @@ import { SERVICES, type InvestigationSummary, type Service, type SystemView } fr
 import {
   ago,
   duration,
-  formatValue,
   headline,
   outcomeName,
   proposalName,
   serviceName,
-  serviceRole,
   statusName,
 } from "../lib/words";
 import "./watch.css";
@@ -127,47 +125,10 @@ function Inbox({ situation, list }: { situation: Situation; list: InvestigationS
   );
 }
 
-const VITALS: { key: string; label: string }[] = [
-  { key: "latency_p95", label: "Response time, p95" },
-  { key: "error_ratio", label: "Requests failing" },
-  { key: "memory_mb", label: "Memory" },
-  { key: "request_rate", label: "Requests" },
-];
-
-function Vitals({ service, system, tone }: { service: Service; system: SystemView | null; tone: "calm" | "sodium" | "flare" | "aurora" }) {
-  const view = system?.services?.[service];
-  const down = Boolean(system?.online && view && view.latest.up === null);
-  return (
-    <motion.div
-      key={service}
-      className="vitals"
-      initial={{ opacity: 0, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 12, transition: { duration: 0.15 } }}
-      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-    >
-      <h2 className="vitals-name">{serviceName[service]}</h2>
-      <p className="vitals-role">{serviceRole[service]}</p>
-      <p className={`vitals-state state-${down ? "flare" : tone}`}>
-        {down ? "Not responding" : tone === "sodium" ? "Under investigation" : tone === "aurora" ? "Recovered" : "Healthy"}
-      </p>
-      <dl>
-        {VITALS.map(({ key, label }) => (
-          <div key={key} className="vital">
-            <dt>{label}</dt>
-            <dd className="num">{formatValue(`x.${key}`, view?.latest[key as keyof typeof view.latest] ?? null)}</dd>
-            <Sparkline values={view?.series[key] ?? []} tone={down ? "flare" : tone} />
-          </div>
-        ))}
-      </dl>
-    </motion.div>
-  );
-}
-
 function Legend() {
   return (
     <div className="legend">
-      <p>Each star is a service of the shop. Click one to see its vitals.</p>
+      <p>Each star is a service of the shop. Click a star, or its name, to open its page.</p>
       <ul>
         <li>
           <span className="legend-spark" aria-hidden="true" /> Sparks are live requests between services.
@@ -191,15 +152,11 @@ export function Watch({
   situation,
   list,
   mode,
-  selected,
-  onSelect,
 }: {
   system: SystemView | null;
   situation: Situation;
   list: InvestigationSummary[] | null;
   mode: "live" | "demo" | "unknown";
-  selected: Service | null;
-  onSelect: (s: Service | null) => void;
 }) {
   const { title, line } = useHeadline(situation, system);
   const [breaking, setBreaking] = useState(false);
@@ -209,20 +166,6 @@ export function Watch({
     <main className="watch">
       <h1 className="visually-hidden">Vigil war room</h1>
       <Inbox situation={situation} list={list} />
-
-      {/* Vitals appear when a star is chosen, so the sky stays clear the rest of the time. */}
-      <AnimatePresence>
-        {selected && (
-          <Panel key="side" as="aside" className="side" label="Service vitals">
-            <AnimatePresence mode="wait">
-              <Vitals key={selected} service={selected} system={system} tone={toneFor(selected)} />
-            </AnimatePresence>
-            <button className="link-button" onClick={() => onSelect(null)}>
-              Close
-            </button>
-          </Panel>
-        )}
-      </AnimatePresence>
 
       <section className={`status status-${situation.kind}`} aria-live="polite">
         <h2 className="status-title">
@@ -266,20 +209,13 @@ export function Watch({
           {legend && (
             <Panel key="legend" className="legend-panel" label="How to read the sky">
               <Legend />
-              <div className="service-picker" role="group" aria-label="Show a service's vitals">
+              <nav className="service-picker" aria-label="Open a service">
                 {SERVICES.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      onSelect(s);
-                      setLegend(false);
-                    }}
-                    className={`chip tone-${toneFor(s)}`}
-                  >
+                  <a key={s} href={href({ page: "service", service: s })} className={`chip tone-${toneFor(s)}`}>
                     {serviceName[s]}
-                  </button>
+                  </a>
                 ))}
-              </div>
+              </nav>
             </Panel>
           )}
         </AnimatePresence>

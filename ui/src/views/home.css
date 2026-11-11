@@ -1,0 +1,389 @@
+/* The home page scrolls like an ordinary page over the fixed sky. Only its own boxes take the
+   pointer, so the stars beside the headline stay clickable. */
+.home {
+  position: relative;
+  z-index: 10;
+  overflow-x: clip;
+  pointer-events: none;
+}
+
+/* The layer itself lets the pointer through to the sky; only what is drawn on it catches it. */
+.home > section > *,
+.home > footer > * {
+  pointer-events: auto;
+}
+
+body:has(.home) {
+  overflow-y: auto;
+}
+
+/* The hero: the words on the left, the live constellation on the right. */
+.hero {
+  position: relative;
+  min-height: 100svh;
+  padding: calc(var(--bar) + 6vh) clamp(16px, 5vw, 72px) 12vh;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 22px;
+  max-width: min(720px, 56vw);
+}
+
+/* A soft dark band behind the words, so a star drifting past never sits on the text. */
+.home::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to right, rgb(4 7 20 / 0.7) 0%, rgb(4 7 20 / 0.35) 38%, transparent 60%);
+}
+
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgb(4 7 20 / 0.45);
+  backdrop-filter: blur(10px);
+  color: var(--haze);
+  font-size: var(--step--1);
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.live-chip:hover {
+  color: var(--starlight);
+  border-color: rgb(232 237 255 / 0.35);
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--aurora);
+  box-shadow: 0 0 10px var(--aurora);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+.live-investigating .live-dot,
+.live-decide .live-dot {
+  background: var(--sodium);
+  box-shadow: 0 0 10px var(--sodium);
+  animation-duration: 1s;
+}
+
+.live-offline .live-dot {
+  background: var(--dim);
+  box-shadow: none;
+}
+
+.hero-title {
+  font-size: clamp(2.8rem, 6.4vw, 6.2rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+
+.hero-lede {
+  max-width: 34em;
+  font-size: var(--step-1);
+  line-height: 1.55;
+  color: #c9d1f0;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.button-large {
+  min-height: 52px;
+  padding: 0 24px;
+  font-size: var(--step-0);
+}
+
+.play {
+  width: 0;
+  height: 0;
+  border-left: 9px solid currentColor;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+
+.hero-hint {
+  color: var(--dim);
+  font-size: var(--step--1);
+}
+
+.scroll-cue {
+  position: absolute;
+  left: clamp(16px, 5vw, 72px);
+  bottom: 5vh;
+  width: 1px;
+  height: 46px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.scroll-cue i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, var(--starlight));
+  animation: cue 2.2s var(--ease-out) infinite;
+}
+
+@keyframes cue {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Sections below the hero sit on a darker band, so text stays readable over the stars. */
+.home-section {
+  position: relative;
+  padding: 14vh clamp(16px, 5vw, 72px);
+  display: grid;
+  justify-items: start;
+  gap: 18px;
+  background: linear-gradient(to right, rgb(4 7 20 / 0.86) 0%, rgb(4 7 20 / 0.6) 55%, rgb(4 7 20 / 0.2) 100%);
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  letter-spacing: -0.045em;
+  max-width: 16em;
+  text-wrap: balance;
+}
+
+.section-lede {
+  color: var(--haze);
+  font-size: var(--step-1);
+  max-width: 36em;
+}
+
+/* One night: a line that fills as you scroll. */
+.night {
+  position: relative;
+  list-style: none;
+  margin: 26px 0 18px;
+  padding: 0 0 0 34px;
+  display: grid;
+  gap: 38px;
+  max-width: 640px;
+}
+
+.night::before,
+.night-line {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 1px;
+}
+
+.night::before {
+  background: var(--line);
+}
+
+.night-line {
+  background: linear-gradient(to bottom, var(--sodium), var(--aurora));
+  box-shadow: 0 0 14px rgb(111 227 200 / 0.4);
+  transform-origin: top;
+}
+
+.night li {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  opacity: 0.38;
+  transition: opacity 0.6s var(--ease-out);
+}
+
+.night li::before {
+  content: "";
+  position: absolute;
+  left: -34px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--midnight);
+  border: 2px solid var(--line-strong);
+  transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+}
+
+.night li.is-lit {
+  opacity: 1;
+}
+
+.night li.is-lit::before {
+  background: var(--starlight);
+  border-color: var(--starlight);
+  box-shadow: 0 0 14px var(--starlight);
+}
+
+.night li:last-child.is-lit::before {
+  background: var(--aurora);
+  border-color: var(--aurora);
+  box-shadow: 0 0 16px var(--aurora);
+}
+
+.night-at {
+  color: var(--sodium);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.night h3 {
+  font-size: var(--step-2);
+}
+
+.night p {
+  color: #c9d1f0;
+  line-height: 1.6;
+  max-width: 40em;
+}
+
+/* Principles: a plain two-by-two. */
+.principles {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 340px));
+  gap: 34px 48px;
+}
+
+.principles h3 {
+  font-size: var(--step-1);
+  margin-bottom: 8px;
+}
+
+.principles p {
+  color: var(--haze);
+  line-height: 1.6;
+}
+
+.home-proof {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px clamp(24px, 5vw, 64px);
+}
+
+.proof-number {
+  font-family: var(--display);
+  font-size: clamp(6rem, 15vw, 13rem);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+  line-height: 0.85;
+  background: linear-gradient(160deg, var(--starlight) 30%, var(--aurora));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.proof-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.home-footer {
+  padding: 10vh clamp(16px, 5vw, 72px) 8vh;
+  display: grid;
+  gap: 10px;
+  color: var(--dim);
+  font-size: var(--step--1);
+  background: rgb(4 7 20 / 0.9);
+}
+
+.footer-word {
+  font-family: var(--display);
+  font-size: clamp(4rem, 14vw, 11rem);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+  line-height: 0.9;
+  color: rgb(232 237 255 / 0.08);
+}
+
+/* The film */
+.film {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(4 7 20 / 0.86);
+  backdrop-filter: blur(8px);
+}
+
+.film-frame {
+  position: relative;
+  width: min(1100px, 100%);
+}
+
+.film-frame video {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 40px 120px -20px rgb(0 0 0 / 0.8);
+  background: var(--midnight);
+}
+
+.film-close {
+  position: absolute;
+  top: -54px;
+  right: 0;
+}
+
+@media (max-width: 760px) {
+  /* On a phone the stars sit at the top and the words start below them. */
+  .hero {
+    max-width: none;
+    align-content: start;
+    padding-top: 42svh;
+    padding-bottom: 10vh;
+    gap: 16px;
+  }
+
+  .hero-title {
+    font-size: clamp(2.3rem, 10.5vw, 3rem);
+  }
+
+  .hero-lede {
+    font-size: var(--step-0);
+  }
+
+  .hero-hint,
+  .scroll-cue {
+    display: none;
+  }
+
+  .home::before {
+    background: linear-gradient(to bottom, transparent 30%, rgb(4 7 20 / 0.75) 48%);
+  }
+
+  .principles {
+    grid-template-columns: 1fr;
+  }
+
+  .home-proof {
+    grid-template-columns: 1fr;
+  }
+
+  .home-section {
+    background: rgb(4 7 20 / 0.82);
+  }
+}

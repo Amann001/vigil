@@ -299,7 +299,7 @@ export function Incident({
     <main className="incident">
       <Panel className="story" label="What happened">
         <a className="back" href={href({ page: "history" })}>
-          All incidents
+          Incidents
         </a>
         {!investigation ? (
           <p className="loading">Opening {id}…</p>

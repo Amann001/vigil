@@ -25,7 +25,6 @@
 
 .drawer h2 {
   font-size: var(--step-4);
-  font-stretch: 80%;
 }
 
 .drawer-intro {
@@ -42,7 +41,7 @@
 }
 
 .drawer legend {
-  font-weight: 580;
+  font-weight: 700;
   margin-bottom: 8px;
   padding: 0;
 }

@@ -74,8 +74,7 @@
 .story-title {
   /* Short screens keep room for the log below the title. */
   font-size: min(var(--step-5), 8.5vh);
-  font-stretch: 80%;
-  font-weight: 620;
+  font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 0.95;
   text-wrap: balance;
@@ -222,7 +221,7 @@
 }
 
 .item-who {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .item-what {
@@ -428,7 +427,6 @@
 .diagnosis-title,
 .proposal-title {
   font-size: var(--step-3);
-  font-stretch: 85%;
 }
 
 .diagnosis-summary {
@@ -534,7 +532,7 @@
 .recovery h2 {
   font-family: var(--text);
   font-size: var(--step-0);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -563,8 +561,7 @@
 .recovery-values b {
   font-family: var(--display);
   font-size: var(--step-3);
-  font-weight: 600;
-  font-stretch: 85%;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -619,7 +616,7 @@
 .team h2 {
   font-family: var(--text);
   font-size: var(--step-0);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0;
   margin-bottom: 10px;
 }

@@ -1,7 +1,7 @@
 import { Billboard, Line, OrbitControls, Stars } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { SERVICES, type Service, type SystemView } from "../lib/types";
@@ -178,7 +178,7 @@ function Star({ service, system, tone, selected, glow, onSelect, onHover }: Star
         ref={core}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect(selected ? null : service);
+          onSelect(service);
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
@@ -198,7 +198,7 @@ function Star({ service, system, tone, selected, glow, onSelect, onHover }: Star
         visible={false}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect(selected ? null : service);
+          onSelect(service);
         }}
       >
         <sphereGeometry args={[0.55, 8, 8]} />
@@ -395,23 +395,87 @@ function LabelTracker({ labels }: { labels: LabelRefs }) {
   return null;
 }
 
-/** Eases the camera towards the focused star, and back to the whole sky when nothing is. */
-function CameraRig({ target, distance, slow }: { target: Service | null; distance: number; slow: boolean }) {
+/**
+ * Where the camera looks on each page. Changing page flies the camera to the new view, so the
+ * site feels like one sky seen from different places.
+ *
+ *   wide   the whole shop, a little high (the war room)
+ *   hero   the whole shop, further back and off to the right of the headline (home)
+ *   far    deep in the background behind a page of text
+ *   star   close on one star, in the middle (an incident) or to the right (a service page)
+ */
+export type View =
+  | { kind: "wide" | "hero" | "far" }
+  | { kind: "star"; service: Service; side?: "middle" | "right" };
+
+const WIDE_AIM = new THREE.Vector3(-0.5, -0.8, 0);
+const SWAY = 0.38; // radians either side of facing the shop
+const CENTRE = new THREE.Vector3(0, 0.2, 0);
+const PHONE_HERO_AIM = new THREE.Vector3(0, -4.6, 0); // aiming low puts the stars near the top
+
+function aimOf(view: View, aspect: number): { point: THREE.Vector3; zoom: number; shift: number } {
+  switch (view.kind) {
+    case "hero":
+      // On a tall phone screen the words sit below the stars instead of beside them.
+      return aspect < 0.9 ? { point: PHONE_HERO_AIM, zoom: 1, shift: 0 } : { point: CENTRE, zoom: 1.45, shift: -3.8 };
+    case "far":
+      return { point: CENTRE, zoom: 1.75, shift: 0 };
+    case "star":
+      return view.side === "right"
+        ? { point: POSITIONS[view.service], zoom: 0.56, shift: -1.7 }
+        : { point: POSITIONS[view.service], zoom: 0.62, shift: 0 };
+    default:
+      return { point: WIDE_AIM, zoom: 1, shift: 0 };
+  }
+}
+
+/** Eases the camera to the page's view. */
+function CameraRig({ view, distance, slow }: { view: View; distance: number; slow: boolean }) {
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
   const goal = useRef(new THREE.Vector3());
+  const wanted = useMemo(() => new THREE.Vector3(), []);
+  const right = useMemo(() => new THREE.Vector3(), []);
+  // The sky sways gently from side to side instead of spinning all the way round, which would
+  // line the stars up edge-on now and then. A drag moves the middle of the sway.
+  const sway = useRef({ base: 0, dragging: false, since: 0 });
+  useEffect(() => {
+    if (!controls) return;
+    const start = () => (sway.current.dragging = true);
+    const end = () => {
+      sway.current.dragging = false;
+      sway.current.base = controls.getAzimuthalAngle();
+      sway.current.since = performance.now() / 1000;
+    };
+    controls.addEventListener("start", start);
+    controls.addEventListener("end", end);
+    return () => {
+      controls.removeEventListener("start", start);
+      controls.removeEventListener("end", end);
+    };
+  }, [controls]);
   useFrame((_, delta) => {
     if (!controls) return;
-    // With nothing focused, aim below and left of the middle, so the stars sit above the headline
-    // and clear of the inbox in the top left corner.
-    const wanted = target ? POSITIONS[target] : new THREE.Vector3(-0.5, -0.8, 0);
+    if (!sway.current.dragging && !reduceMotion) {
+      const t = performance.now() / 1000 - sway.current.since;
+      const theta = sway.current.base + SWAY * Math.sin(t * 0.07);
+      const offset = camera.position.clone().sub(controls.target);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      spherical.theta += (theta - spherical.theta) * (1 - Math.exp(-delta * 2));
+      camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));
+    }
+    const { point, zoom, shift } = aimOf(view, size.width / size.height);
+    // A sideways shift moves the aim along the camera's own right-hand direction, so the stars
+    // land on the same side of the screen however far the sky has turned.
+    right.setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
+    wanted.copy(point).addScaledVector(right, shift);
     goal.current.lerp(wanted, 1 - Math.exp(-delta * 1.8));
     controls.target.copy(goal.current);
     const offset = camera.position.clone().sub(controls.target);
-    const want = target ? distance * 0.62 : distance;
     // The opening flight from deep space is slower, so it reads as a journey.
     const rate = slow ? 0.55 : 1.4;
-    offset.setLength(THREE.MathUtils.lerp(offset.length(), want, 1 - Math.exp(-delta * rate)));
+    offset.setLength(THREE.MathUtils.lerp(offset.length(), distance * zoom, 1 - Math.exp(-delta * rate)));
     camera.position.copy(controls.target).add(offset);
     controls.update();
   });
@@ -426,12 +490,16 @@ export interface ConstellationProps {
   focus: Focus | null;
   agents: string[];
   selected: Service | null;
-  cameraOn: Service | null;
+  view: View;
+  /** Dim the sky behind a page that is mostly text. */
+  dim?: boolean;
   onSelect: (s: Service | null) => void;
   onHover?: (s: Service | null) => void;
+  /** The address of a star's own page, for its label. */
+  linkTo?: (s: Service) => string;
 }
 
-function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, labels, fromAfar }: ConstellationProps) {
+function Scene({ system, focus, agents, selected, view, onSelect, onHover, labels, fromAfar }: ConstellationProps) {
   const glow = useGlowTexture();
   const { size } = useThree();
   // Far enough that the whole constellation (about 9 units wide) fits the screen's width: a
@@ -470,12 +538,12 @@ function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, l
         enableDamping
         dampingFactor={0.06}
         rotateSpeed={0.45}
-        autoRotate={!reduceMotion}
-        autoRotateSpeed={0.18}
+        minAzimuthAngle={-1.1}
+        maxAzimuthAngle={1.1}
         minPolarAngle={Math.PI * 0.3}
         maxPolarAngle={Math.PI * 0.62}
       />
-      <CameraRig target={cameraOn} distance={distance} slow={Boolean(fromAfar)} />
+      <CameraRig view={view} distance={distance} slow={Boolean(fromAfar)} />
       {labels && <LabelTracker labels={labels} />}
       <EffectComposer multisampling={0}>
         <Bloom intensity={1.15} luminanceThreshold={0.18} luminanceSmoothing={0.3} mipmapBlur radius={0.72} />
@@ -485,9 +553,10 @@ function Scene({ system, focus, agents, selected, cameraOn, onSelect, onHover, l
   );
 }
 
-function Labels({ system, focus, selected, labels, fromAfar }: ConstellationProps & { labels: LabelRefs }) {
+function Labels({ system, focus, selected, labels, fromAfar, linkTo, onHover, view }: ConstellationProps & { labels: LabelRefs }) {
+  const here = view.kind === "star" ? view.service : null;
   return (
-    <div className={`star-labels${fromAfar ? " is-hidden" : ""}`}>
+    <nav className={`star-labels${fromAfar ? " is-hidden" : ""}`} aria-label="The shop's services">
       {SERVICES.map((service) => {
         const latest = system?.services?.[service]?.latest;
         const down = Boolean(system?.online && latest && latest.up === null);
@@ -495,24 +564,34 @@ function Labels({ system, focus, selected, labels, fromAfar }: ConstellationProp
         const p95 = latest?.latency_p95 ?? null;
         return (
           <div key={service} className="star-label" ref={(el) => void (labels.current[service] = el)}>
-            <div className={`star-tag tone-${tone}${selected === service ? " is-selected" : ""}`}>
+            <a
+              className={`star-tag tone-${tone}${selected === service ? " is-selected" : ""}${here === service ? " is-here" : ""}`}
+              href={linkTo?.(service)}
+              aria-current={here === service ? "page" : undefined}
+              onMouseEnter={() => onHover?.(service)}
+              onMouseLeave={() => onHover?.(null)}
+              onFocus={() => onHover?.(service)}
+              onBlur={() => onHover?.(null)}
+            >
               <span className="star-name">{serviceName[service]}</span>
               <span className="star-metric num">
                 {down ? "not responding" : p95 !== null ? formatValue("x.latency_p95", p95) : "…"}
               </span>
-            </div>
+              <span className="star-open">Open {serviceName[service]}</span>
+            </a>
           </div>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
 export function Constellation(props: ConstellationProps) {
   const labels: LabelRefs = useRef({});
   return (
-    <div className="constellation" aria-hidden="true">
+    <div className={`constellation${props.dim ? " is-dim" : ""}`}>
       <Canvas
+        aria-hidden="true"
         dpr={[1, 1.75]}
         camera={{ position: props.fromAfar ? [0, 9, 48] : [0, 0.9, 9.5], fov: 40 }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}

@@ -19,8 +19,8 @@ const FAULTS = [
  * The demo control: inject a real fault into the running shop and watch Vigil find it. The
  * fault stays until the service restarts, so it is only fixed if Vigil's fix is approved.
  */
-export function BreakSomething({ onClose }: { onClose: () => void }) {
-  const [service, setService] = useState<Service>("payments");
+export function BreakSomething({ onClose, initial = "payments" }: { onClose: () => void; initial?: Service }) {
+  const [service, setService] = useState<Service>(initial);
   const [fault, setFault] = useState<(typeof FAULTS)[number]["id"]>("latency");
   const [state, setState] = useState<{ kind: "idle" | "sending" | "done" | "error"; message?: string }>({ kind: "idle" });
   const [hasToken, setHasToken] = useState(Boolean(getToken()));

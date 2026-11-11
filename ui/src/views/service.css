@@ -1,0 +1,228 @@
+/* A service's page: a column on the left, its star close up on the right. */
+.service-page {
+  position: fixed;
+  inset: var(--bar) 0 0 0;
+  z-index: 10;
+  pointer-events: none;
+  padding: 14px 22px 22px;
+}
+
+.service-panel {
+  pointer-events: auto;
+  width: clamp(340px, 40vw, 500px);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 22px 26px 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-content: start;
+}
+
+.service-panel .back {
+  margin: 0;
+}
+
+.service-head {
+  display: grid;
+  gap: 8px;
+}
+
+.service-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 4px 12px 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: var(--step--1);
+  color: var(--haze);
+}
+
+.state-sodium {
+  color: var(--sodium);
+  border-color: rgb(255 165 61 / 0.4);
+}
+
+.state-flare {
+  color: var(--flare);
+  border-color: rgb(255 77 94 / 0.4);
+}
+
+.state-aurora {
+  color: var(--aurora);
+  border-color: rgb(111 227 200 / 0.4);
+}
+
+.service-name {
+  /* Sized so the longest name, Storefront, fits the column. */
+  font-size: clamp(2.4rem, 4.6vw, 4.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.service-role {
+  color: var(--haze);
+  font-size: var(--step-1);
+}
+
+.service-story {
+  color: #c9d1f0;
+  line-height: 1.6;
+  max-width: 46ch;
+}
+
+.service-vitals {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.service-vital {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px 10px;
+  border-radius: 12px;
+  background: rgb(232 237 255 / 0.035);
+  border: 1px solid var(--line);
+}
+
+.service-vital dt {
+  color: var(--haze);
+  font-size: var(--step--1);
+}
+
+.service-vital dd {
+  margin: 0 0 4px;
+  font-family: var(--display);
+  font-size: var(--step-2);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.service-vital .spark {
+  width: 100%;
+  height: 34px;
+}
+
+.service-note {
+  margin-top: -10px;
+  color: var(--dim);
+  font-size: 11.5px;
+}
+
+.service-links h2,
+.service-incidents h2 {
+  font-size: var(--step-0);
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.service-links p {
+  color: #c9d1f0;
+}
+
+.service-links a {
+  color: var(--starlight);
+  text-decoration-color: var(--dim);
+  text-underline-offset: 3px;
+}
+
+.service-links a:hover {
+  text-decoration-color: var(--starlight);
+}
+
+.service-incidents ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.service-incidents a {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.service-incidents a:hover {
+  background: rgb(232 237 255 / 0.06);
+}
+
+.service-incidents strong {
+  font-weight: 600;
+}
+
+.service-incidents span {
+  color: var(--haze);
+  font-size: var(--step--1);
+  white-space: nowrap;
+}
+
+.service-none {
+  color: var(--haze);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+.service-break {
+  justify-self: start;
+}
+
+.service-walk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.service-walk a {
+  color: var(--starlight);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 6px 10px;
+  margin: -6px -10px;
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+
+.service-walk a:hover {
+  background: rgb(232 237 255 / 0.07);
+}
+
+.service-keys {
+  color: var(--dim);
+  font-size: 11.5px;
+}
+
+@media (max-width: 760px) {
+  .service-page {
+    position: absolute;
+    inset: auto 0 auto 0;
+    top: 46vh;
+    padding: 0 16px 24px;
+  }
+
+  body:has(.service-page) {
+    overflow: auto;
+  }
+
+  .service-panel {
+    width: 100%;
+    max-height: none;
+  }
+
+  .service-keys {
+    display: none;
+  }
+}

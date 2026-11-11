@@ -1,0 +1,250 @@
+.how {
+  position: fixed;
+  inset: var(--bar) 0 0 0;
+  z-index: 10;
+  overflow-y: auto;
+  padding: clamp(24px, 6vh, 64px) clamp(16px, 5vw, 72px) 64px;
+  display: grid;
+  align-content: start;
+  gap: 34px;
+}
+
+.how-head {
+  display: grid;
+  gap: 14px;
+  max-width: 820px;
+}
+
+.how-head h1 {
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.how-lede {
+  color: #c9d1f0;
+  font-size: var(--step-1);
+  max-width: 40em;
+}
+
+/* The stages top to bottom on the left; the chosen part stays beside them on the right. */
+.how-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  gap: 32px;
+  align-items: start;
+  max-width: 1180px;
+}
+
+.pipeline {
+  display: grid;
+  gap: 26px;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.stage h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: var(--step-0);
+  letter-spacing: -0.01em;
+  color: var(--haze);
+}
+
+.stage-number {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--midnight);
+  font-family: var(--text);
+  font-size: 11.5px;
+  color: var(--starlight);
+}
+
+.stage-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.part {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 0.25s, background 0.25s, transform 0.35s var(--ease-out), box-shadow 0.25s;
+}
+
+.part:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+
+.part[aria-selected="true"] {
+  background: rgb(232 237 255 / 0.12);
+  border-color: rgb(232 237 255 / 0.45);
+  box-shadow: 0 0 0 1px rgb(232 237 255 / 0.15), 0 14px 40px -18px rgb(143 183 255 / 0.55);
+}
+
+.part-dot {
+  width: 9px;
+  height: 9px;
+}
+
+.part-human {
+  border-style: dashed;
+  border-color: rgb(255 165 61 / 0.5);
+}
+
+.part-human .part-dot {
+  background: var(--sodium);
+  box-shadow: 0 0 10px var(--sodium);
+}
+
+.part-ml .part-dot {
+  background: var(--sodium);
+}
+
+.part-code .part-dot {
+  background: var(--haze);
+}
+
+/* A pulse travels down from each stage to the next, like a request through the system. */
+.stage-flow {
+  position: absolute;
+  left: 11px;
+  top: 34px;
+  width: 1px;
+  height: calc(100% + 2px);
+  background: var(--line-strong);
+}
+
+.stage-flow i {
+  position: absolute;
+  left: -2px;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--starlight);
+  box-shadow: 0 0 8px var(--starlight);
+  animation: flow 2s ease-in-out infinite;
+}
+
+@keyframes flow {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(var(--flow-length, 60px));
+    opacity: 0;
+  }
+}
+
+/* The chosen part */
+.part-detail {
+  position: sticky;
+  top: 12px;
+  padding: 26px 28px;
+  border-radius: var(--radius-m);
+  background: var(--glass-strong);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line-strong);
+  display: grid;
+  gap: 16px;
+}
+
+.part-detail h2 {
+  font-size: var(--step-3);
+  letter-spacing: -0.045em;
+}
+
+.part-does {
+  font-size: var(--step-1);
+  line-height: 1.55;
+  color: #dce2fa;
+}
+
+.part-detail dl {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 40px;
+}
+
+.part-detail dt {
+  color: var(--dim);
+  font-size: var(--step--1);
+}
+
+.part-detail dd {
+  margin: 2px 0 0;
+  font-family: var(--code);
+  font-size: 13px;
+  color: #b9cdf7;
+}
+
+.part-said {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border-left: 2px solid var(--aurora);
+  background: rgb(111 227 200 / 0.06);
+  color: #c9d1f0;
+  line-height: 1.6;
+  display: grid;
+  gap: 4px;
+}
+
+.part-said span {
+  color: var(--aurora);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.part-detail .link-button {
+  justify-self: start;
+}
+
+.how-foot {
+  color: var(--haze);
+  max-width: 48em;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .how-body {
+    grid-template-columns: 1fr;
+  }
+
+  .stage {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .stage-flow {
+    display: none;
+  }
+}

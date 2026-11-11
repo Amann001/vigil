@@ -1,0 +1,26 @@
+.lost {
+  position: fixed;
+  inset: var(--bar) 0 0 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 16px;
+  text-align: center;
+}
+
+.lost h1 {
+  font-size: clamp(3rem, 9vw, 7rem);
+  letter-spacing: -0.05em;
+}
+
+.lost p {
+  color: var(--haze);
+  font-size: var(--step-1);
+}
+
+.lost-links {
+  display: flex;
+  gap: 10px;
+}

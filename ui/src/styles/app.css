@@ -103,7 +103,7 @@
   background: var(--sodium);
   border-color: var(--sodium);
   color: #1a0f00;
-  font-weight: 620;
+  font-weight: 700;
   box-shadow: 0 0 0 0 rgb(255 165 61 / 0.5);
 }
 
@@ -291,7 +291,7 @@
 .markdown h4 {
   font-family: var(--display);
   font-size: var(--step-1);
-  font-weight: 600;
+  font-weight: 700;
   margin: 0.5em 0 0;
 }
 

@@ -42,7 +42,7 @@
 }
 
 .inbox-text strong {
-  font-weight: 560;
+  font-weight: 700;
 }
 
 .inbox-text span {
@@ -97,7 +97,7 @@
 }
 
 .inbox-empty strong {
-  font-weight: 560;
+  font-weight: 700;
 }
 
 .inbox-empty span {
@@ -221,7 +221,6 @@
 
 .vitals-name {
   font-size: var(--step-3);
-  font-stretch: 85%;
 }
 
 .vitals-role {
@@ -283,7 +282,7 @@
 .vital dd {
   grid-area: value;
   margin: 0;
-  font-weight: 560;
+  font-weight: 700;
 }
 
 .vital .spark {
@@ -330,8 +329,7 @@
 
 .status-title {
   font-size: var(--step-6);
-  font-weight: 620;
-  font-stretch: 78%;
+  font-weight: 700;
   letter-spacing: -0.035em;
   line-height: 0.92;
   text-wrap: balance;
@@ -394,7 +392,7 @@
 
 .guide-head strong {
   color: var(--starlight);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .guide-steps {

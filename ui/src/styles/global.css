@@ -1,4 +1,4 @@
-@import "@fontsource-variable/bricolage-grotesque/standard.css";
+@import "@fontsource-variable/sora/wght.css";
 @import "@fontsource-variable/geist/wght.css";
 @import "@fontsource-variable/geist-mono/wght.css";
 
@@ -23,7 +23,7 @@
   --line: rgb(232 237 255 / 0.09);
   --line-strong: rgb(232 237 255 / 0.18);
 
-  --display: "Bricolage Grotesque Variable", "Arial Narrow", sans-serif;
+  --display: "Sora Variable", "Segoe UI", system-ui, sans-serif;
   --text: "Geist Variable", system-ui, sans-serif;
   --code: "Geist Mono Variable", ui-monospace, monospace;
 
@@ -80,9 +80,9 @@ h1,
 h2,
 h3 {
   font-family: var(--display);
-  font-weight: 600;
-  line-height: 1.02;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
 }
 
 button,

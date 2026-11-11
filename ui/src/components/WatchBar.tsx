@@ -1,14 +1,17 @@
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { now as clockNow } from "../lib/clock";
 import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import type { SystemView } from "../lib/types";
 import "./watchbar.css";
 
-const PAGES: { route: Route; label: string }[] = [
-  { route: { page: "watch" }, label: "Watch" },
-  { route: { page: "history" }, label: "Incidents" },
-  { route: { page: "scores" }, label: "Scores" },
+const PAGES: { route: Route; label: string; also?: Route["page"][] }[] = [
+  { route: { page: "watch" }, label: "War room", also: ["service"] },
+  { route: { page: "history" }, label: "Incidents", also: ["incident"] },
+  { route: { page: "how" }, label: "How it works" },
+  { route: { page: "scores" }, label: "Results" },
 ];
 
 function useNow(ms = 1000) {
@@ -83,23 +86,60 @@ export function WatchBar({
 }) {
   const now = useNow();
   const waiting = situation.pending.length + situation.replays.length;
+  const [menu, setMenu] = useState(false);
+  // A page change closes the menu.
+  useEffect(() => setMenu(false), [route]);
   return (
     <header className="watchbar">
-      <a className="brand" href={href({ page: "watch" })} aria-label="Vigil, back to the watch">
+      <a className="brand" href={href({ page: "home" })} aria-label="Vigil, home">
         <span className={`brand-eye eye-${situation.kind}`} aria-hidden="true" />
         <span className="brand-word">Vigil</span>
       </a>
       <nav className="pages" aria-label="Pages">
-        {PAGES.map(({ route: target, label }) => {
-          const current = route.page === target.page || (route.page === "incident" && target.page === "history");
+        {PAGES.map(({ route: target, label, also }) => {
+          const current = route.page === target.page || Boolean(also?.includes(route.page));
           return (
             <a key={label} href={href(target)} aria-current={current ? "page" : undefined}>
-              {label}
+              {/* One pill that slides to the current page. */}
+              {current && <motion.span layoutId="nav-pill" className="nav-pill" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
+              <span className="nav-label">{label}</span>
               {target.page === "history" && waiting > 0 && <span className="badge num">{waiting}</span>}
             </a>
           );
         })}
       </nav>
+      <button className="menu-button" aria-expanded={menu} aria-controls="site-menu" onClick={() => setMenu(!menu)}>
+        {menu ? "Close" : "Menu"}
+      </button>
+      {/* In a portal: the bar's frosted glass would otherwise hold the menu inside the bar. */}
+      {createPortal(
+      <AnimatePresence>
+        {menu && (
+          <motion.nav
+            id="site-menu"
+            className="site-menu"
+            aria-label="Pages"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            {[{ route: { page: "home" } as Route, label: "Home" }, ...PAGES].map(({ route: target, label }, i) => (
+              <motion.a
+                key={label}
+                href={href(target)}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 + i * 0.05, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {label}
+              </motion.a>
+            ))}
+          </motion.nav>
+        )}
+      </AnimatePresence>,
+      document.body,
+      )}
       <DetectorStrip system={system} />
       <div className="clock num" aria-label="Current time">
         <span>{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>

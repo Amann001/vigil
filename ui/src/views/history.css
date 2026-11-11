@@ -21,7 +21,6 @@
 
 .history-head h1 {
   font-size: var(--step-6);
-  font-stretch: 78%;
   letter-spacing: -0.035em;
 }
 
@@ -82,7 +81,7 @@
 }
 
 .row-main strong {
-  font-weight: 560;
+  font-weight: 700;
 }
 
 .row-main span {
