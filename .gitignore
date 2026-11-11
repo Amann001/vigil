@@ -37,3 +37,6 @@ Thumbs.db
 node_modules/
 ui/video-frames/
 ui/*.mp4
+ui/src/**/*.js
+ui/*.tsbuildinfo
+ui/vite.config.js
