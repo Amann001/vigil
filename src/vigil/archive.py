@@ -9,9 +9,12 @@ Off unless VIGIL_ARCHIVE=1 and DATABASE_URL are both set (the cloud image sets t
 laptop run and the tests never touch the database through here.
 """
 
+import contextlib
 import logging
 import os
 from pathlib import Path
+
+import psycopg
 
 from shop.config import DATA_DIR
 
@@ -32,7 +35,11 @@ class Archive:
 
         self.root = root
         self.session = Session(url)
-        self.session.execute(SCHEMA)
+        # `vigil up` starts the API, the watcher and a worker at once; when two of them run
+        # CREATE TABLE IF NOT EXISTS at the same moment, Postgres can fail the slower one even
+        # so. The table it wanted exists, which is all that matters.
+        with contextlib.suppress(psycopg.errors.UniqueViolation, psycopg.errors.DuplicateTable):
+            self.session.execute(SCHEMA)
 
     def key(self, path: Path) -> str:
         return path.resolve().relative_to(self.root.resolve()).as_posix()
