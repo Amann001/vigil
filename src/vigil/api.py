@@ -31,10 +31,27 @@ import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from vigil.actions import AUDIT_LOG, AuditLog
 from vigil.investigations import LIVE_DIR, REPORTS_DIR, load_reports
 from vigil.worker import enqueue_review
+
+
+class PageFiles(StaticFiles):
+    """The built war room. Its pages (/war-room, /incidents/<id>, ...) are drawn in the
+    browser, so an address that is not a file gets index.html, and the page takes it from there.
+    """
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as error:
+            # A missing file with an extension (a script, an image) stays a 404.
+            if error.status_code != 404 or Path(path).suffix:
+                raise
+            return await super().get_response("index.html", scope)
+
 
 API_PORT = 8030
 Service = Literal["storefront", "orders", "payments", "inventory"]
@@ -217,8 +234,8 @@ def create_app(
             raise HTTPException(503, f"The shop is not reachable: {error}") from error
 
     if ui_dir is not None and (ui_dir / "index.html").exists():
-        # Mounted last, so every API route above wins; the UI routes with #/... in the URL.
-        app.mount("/", StaticFiles(directory=ui_dir, html=True), name="ui")
+        # Mounted last, so every API route above wins.
+        app.mount("/", PageFiles(directory=ui_dir, html=True), name="ui")
     return app
 
 

@@ -171,6 +171,19 @@ def test_the_built_ui_is_served_without_hiding_the_api(tmp_path):
     assert client.get("/health").json()["status"] == "ok"
 
 
+def test_every_page_address_gets_the_war_room_but_missing_files_stay_missing(tmp_path):
+    ui = tmp_path / "dist"
+    ui.mkdir()
+    (ui / "index.html").write_text("<title>Vigil</title>")
+    client = TestClient(create_app(reports_dir=tmp_path, ui_dir=ui))
+
+    for page in ("/war-room", "/incidents/live-1", "/services/orders", "/how-it-works"):
+        response = client.get(page)
+        assert response.status_code == 200 and "Vigil" in response.text, page
+    assert client.get("/assets/missing.js").status_code == 404
+    assert client.get("/investigations").json() == []
+
+
 def test_a_timeline_left_behind_by_a_stopped_worker_is_shown_as_stopped(tmp_path):
     import os
     import time
