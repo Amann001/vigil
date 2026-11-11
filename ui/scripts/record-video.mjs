@@ -1,20 +1,23 @@
-// Records the demo video (docs/demo/vigil-demo.mp4): drives the war room's public replay
-// through the recorded incident in headless Chrome, with captions and a visible pointer drawn
-// into the page, then assembles the frames into a 60 fps MP4 with ffmpeg.
+// Records the demo film (ui/public/film/vigil-demo.mp4): tours the site's public replay in
+// headless Chrome, from the home page through the recorded incident to the results, with
+// captions and a visible pointer drawn into the page, then assembles the frames into a 60 fps
+// MP4 with ffmpeg.
 //
 //   npm run build
-//   python -m http.server 8040 --bind 127.0.0.1 --directory dist    # no API: the replay plays
-//   node scripts/record-video.mjs                                   # needs Chrome and ffmpeg
+//   node scripts/record-video.mjs public/film/vigil-demo.mp4      # needs Chrome and ffmpeg
 import puppeteer from "puppeteer-core";
+import { serve } from "./serve-replay.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 
-const URL = process.env.TOUR_URL ?? "http://127.0.0.1:8040/#/";
+const PORT = 8041;
+const SITE = `http://127.0.0.1:${PORT}`;
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const OUT = "video-frames";
 const VIDEO = process.argv[2] ?? "vigil-demo.mp4";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const server = await serve(PORT);
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
@@ -101,7 +104,7 @@ const textIs = (selector, pattern) =>
     pattern,
   );
 
-await page.goto(URL, { waitUntil: "networkidle0" });
+await page.goto(`${SITE}/`, { waitUntil: "networkidle0" });
 // Every frame Chrome paints is saved with its timestamp; the video is assembled afterwards,
 // so slow encoding can never drop frames.
 rmSync(OUT, { recursive: true, force: true });
@@ -128,20 +131,30 @@ const mark = (what) => console.log(((Date.now() - t0) / 1000).toFixed(1).padStar
 
 await setup();
 mark("intro");
-await sleep(7500);
-await caption("A small online shop, running live. Each star is a service; each spark is a real request between them.", "What you are watching");
-await sleep(6500);
-await caption("Someone has quietly made Orders leak memory. Nobody tells Vigil.", "The fault");
+await sleep(5500);
+await caption("Vigil is an AI on-call engineer. It watches a small online shop: each star is one of its services, live.", "Vigil");
+await sleep(5000);
+await caption("");
+await click(".star-tag[href$='/services/orders']", { pause: 300 });
+await pointerAway();
+mark("service");
+await caption("Every star has its own page: what the service does and how it is right now.", "A service");
+await sleep(5000);
+await caption("");
+await click(".pages a[href='/war-room']", { pause: 300 });
+await pointerAway();
+mark("war room");
+await caption("The war room, where Vigil keeps watch. Someone has quietly made Orders leak memory. Nobody tells Vigil.", "The fault");
 await textIs(".status-title", "wrong");
 mark("alert");
 await caption("Vigil's anomaly detector notices on its own and raises the alarm. A team of AI agents starts investigating.", "Detected");
 await sleep(5000);
 await caption("");
-await click("a.button[href^='#/incident']", { pause: 300 }).catch(() => click(".status a[href^='#/incident']"));
+await click(".status a[href^='/incidents/']", { pause: 300 });
 await pointerAway();
 mark("incident");
 await sleep(1200);
-await caption("A supervisor agent asks questions; specialists read the logs, metrics and recent deploys to answer them. Every step shows up as it happens.", "Investigating");
+await caption("A supervisor agent asks questions; specialists read the logs, metrics and recent changes to answer them. Every step shows up as it happens.", "Investigating");
 await page.waitForSelector(".decision-send", { visible: true, timeout: 240000 });
 mark("review");
 await sleep(1500);
@@ -159,15 +172,18 @@ await caption("Orders restarts. Its memory drops from 419 MB back to normal, and
 await page.evaluate(() => document.querySelector(".recovery")?.scrollIntoView({ behavior: "smooth", block: "center" }));
 await sleep(8000);
 await caption("");
-await click("a.brand", { pause: 300 });
+await click(".pages a[href='/how-it-works']", { pause: 300 });
 await pointerAway();
-mark("watch");
-await textIs(".status-title", "back");
-await sleep(4000);
+mark("how");
+await caption("Each part of Vigil does one job. Language models never touch the shop: every change goes through a person and plain-code guardrails.", "How it works");
+for (const part of ["detector", "logs", "you", "guardrails"]) {
+  await click(`[data-part='${part}']`, { pause: 2200 });
+}
+await pointerAway();
 await caption("");
-await click(".watchbar a[href='#/scores'], nav a[href='#/scores']", { pause: 300 });
+await click(".pages a[href='/results']", { pause: 300 });
 await pointerAway();
-mark("scores");
+mark("results");
 await caption("Tested on six scenarios written by someone else: every incident diagnosed and fixed right, with no false alarms.", "Measured");
 for (let i = 0; i < 6; i++) {
   await page.mouse.wheel({ deltaY: 260 });
@@ -183,10 +199,10 @@ await caption("");
 await page.evaluate(() => {
   const card = document.createElement("div");
   card.className = "intro";
-  card.style.cssText = "background:radial-gradient(60% 55% at 50% 50%, rgb(4 7 20 / 0.55), rgb(4 7 20 / 0.97));opacity:0;transition:opacity 1.4s cubic-bezier(.16,1,.3,1);cursor:default";
+  card.style.cssText = "background:radial-gradient(60% 55% at 50% 50%, rgb(4 7 20 / 0.9), rgb(4 7 20 / 0.99));opacity:0;transition:opacity 1.4s cubic-bezier(.16,1,.3,1);cursor:default";
   card.innerHTML = `<h1 class="intro-word">Vigil</h1>
     <p class="intro-line">The AI on-call engineer that never sleeps.</p>
-    <p class="intro-line" style="font-size:17px;color:#545e86;margin-top:6px">Detects with ML, investigates with a team of LLM agents, fixes only with a human's approval.<br>Python, LangGraph, PostgreSQL + pgvector, ONNX, React Three Fiber. Free tiers only.</p>`;
+    <p class="intro-line" style="font-size:17px;color:#737ea8;margin-top:6px">Detects with ML, investigates with a team of LLM agents, fixes only with a human's approval.<br>Python, LangGraph, PostgreSQL + pgvector, ONNX, React Three Fiber. Free tiers only.</p>`;
   document.body.append(card);
   requestAnimationFrame(() => requestAnimationFrame(() => (card.style.opacity = "1")));
 });
@@ -194,6 +210,7 @@ await sleep(7000);
 mark("end");
 await rec.stop();
 await browser.close();
+server.close();
 
 // Each frame is shown for as long as it was on screen, then resampled to a steady 60 fps.
 const seconds = (shots.at(-1)[1] - shots[0][1]).toFixed(2);
