@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { RisingText } from "../components/Bits";
 import { href } from "../lib/route";
 import type { Situation } from "../lib/state";
@@ -65,10 +66,13 @@ function Film({ onClose }: { onClose: () => void }) {
         exit={{ scale: 0.96, y: 10 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       >
+        <div className="film-head">
+          <span>Vigil in two minutes: a real incident, from the fault to the fix. Esc closes.</span>
+          <button className="button button-ghost" onClick={onClose} autoFocus>
+            Close
+          </button>
+        </div>
         <video src={FILM} controls autoPlay playsInline />
-        <button className="film-close button button-ghost" onClick={onClose} autoFocus>
-          Close
-        </button>
       </motion.div>
     </motion.div>
   );
@@ -201,7 +205,9 @@ export function Home({
         </p>
       </footer>
 
-      <AnimatePresence>{film && <Film onClose={() => setFilm(false)} />}</AnimatePresence>
+      {/* In a portal: inside the home layer it would inherit "let the pointer through" (so the
+          stars stay clickable) and sit under the top bar, and its buttons would not respond. */}
+      {createPortal(<AnimatePresence>{film && <Film onClose={() => setFilm(false)} />}</AnimatePresence>, document.body)}
     </main>
   );
 }

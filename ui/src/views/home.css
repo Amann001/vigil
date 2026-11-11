@@ -342,10 +342,14 @@ body:has(.home) {
   background: var(--midnight);
 }
 
-.film-close {
-  position: absolute;
-  top: -54px;
-  right: 0;
+.film-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--haze);
+  font-size: var(--step--1);
 }
 
 @media (max-width: 760px) {
