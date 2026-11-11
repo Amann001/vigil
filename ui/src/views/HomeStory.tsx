@@ -62,60 +62,123 @@ export function Problem() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 2. The team: the page stands still while the row of parts slides past.
+// 2. The team as a deck of cards: stacked at first, then fanned into a ring that turns with the
+//    scroll, so each of the eleven parts comes to the front in turn.
 
 const ORDER = STAGES.flatMap((stage) => stage.parts.map((id) => ({ id, stage: stage.title })));
+const CARDS = ORDER.length;
+const STEP = 360 / CARDS; // degrees between neighbouring cards on the ring
+const SPREAD_UNTIL = 0.16; // share of the section spent fanning the deck out into the ring
+const TURN_UNTIL = 0.94; // the last card reaches the front here, and the ring rests
+
+const clamp = (v: number) => Math.min(1, Math.max(0, v));
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+/** Where card i sits at scroll progress p: its angle on the ring, and how far the deck has spread. */
+function pose(i: number, p: number) {
+  const spread = ease(clamp(p / SPREAD_UNTIL));
+  const turn = clamp((p - SPREAD_UNTIL) / (TURN_UNTIL - SPREAD_UNTIL)) * STEP * (CARDS - 1);
+  const raw = i * STEP * spread - turn;
+  const angle = ((((raw + 180) % 360) + 360) % 360) - 180; // -180..180, 0 is the front
+  return { angle, spread };
+}
+
+function frontCard(p: number): number {
+  return Math.round(clamp((p - SPREAD_UNTIL) / (TURN_UNTIL - SPREAD_UNTIL)) * (CARDS - 1));
+}
+
+function DeckCard({ index, progress, radius, front }: { index: number; progress: MotionValue<number>; radius: number; front: boolean }) {
+  const { id, stage } = ORDER[index];
+  const part = PARTS[id];
+  const transform = useTransform(progress, (p) => {
+    const { angle, spread } = pose(index, p);
+    // While stacked, each card sits a little higher and askew, like a squared-up deck in a hand.
+    const tilt = (1 - spread) * (index - (CARDS - 1) / 2) * 1.8;
+    const lift = (1 - spread) * -index * 2.5;
+    // The ring's centre moves back by its radius, so the card at the front stays its own size.
+    const r = radius * spread;
+    return `translateZ(${-r}px) rotateY(${angle}deg) translateZ(${r}px) translateY(${lift}px) rotateZ(${tilt}deg)`;
+  });
+  const opacity = useTransform(progress, (p) => {
+    const { angle, spread } = pose(index, p);
+    const facing = (Math.cos((angle * Math.PI) / 180) + 1) / 2;
+    return spread < 0.05 ? 1 : 0.18 + 0.82 * facing ** 1.6;
+  });
+  const zIndex = useTransform(progress, (p) => {
+    const { angle } = pose(index, p);
+    return Math.round((180 - Math.abs(angle)) * 10) + (CARDS - index);
+  });
+  return (
+    <motion.article
+      className={`deck-card kind-${part.kind}${front ? " is-front" : ""}`}
+      style={{ transform, opacity, zIndex }}
+      aria-hidden={!front}
+    >
+      <span className="deck-index num">{String(index + 1).padStart(2, "0")}</span>
+      <span className={`deck-glow agent-dot agent-${part.role ?? id}`} aria-hidden="true" />
+      <span className="deck-stage">{stage}</span>
+      <h3>{part.name}</h3>
+      <p>{part.short}</p>
+    </motion.article>
+  );
+}
 
 export function Team() {
   const ref = useRef<HTMLDivElement>(null);
-  const track = useRef<HTMLDivElement>(null);
-  const [travel, setTravel] = useState(0);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
-  const smooth = useSpring(scrollYProgress, { stiffness: 110, damping: 28 });
-  const x = useTransform(smooth, [0, 1], [0, -travel]);
-  const bar = useTransform(smooth, [0, 1], ["0%", "100%"]);
-
+  const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 24, mass: 0.6 });
+  const [front, setFront] = useState(0);
+  useMotionValueEvent(progress, "change", (p) => setFront(frontCard(p)));
+  const [radius, setRadius] = useState(440);
   useEffect(() => {
-    const measure = () => setTravel(Math.max(0, (track.current?.scrollWidth ?? 0) - window.innerWidth + 64));
+    // Wide enough that eleven cards stand edge to edge round the ring, with a small gap.
+    const measure = () => setRadius(window.innerWidth < 700 ? 330 : 440);
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
+  const reduce = useReducedMotion();
+  const current = PARTS[ORDER[front].id];
+
+  if (reduce) {
+    return (
+      <section className="chapter" aria-label="The team">
+        <h2 className="section-title">Eleven parts. One job each.</h2>
+        <ol className="deck-list">
+          {ORDER.map(({ id }, i) => (
+            <li key={id}>
+              <span className="num">{String(i + 1).padStart(2, "0")}</span> <strong>{PARTS[id].name}</strong>: {PARTS[id].short}
+            </li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
 
   return (
-    <section ref={ref} className="story-team" aria-label="The team" style={{ height: `calc(100vh + ${travel}px)` }}>
+    <section ref={ref} className="story-team" aria-label="The team">
       <div className="team-pin">
         <header className="team-head">
           <h2 className="section-title">Eleven parts. One job each.</h2>
-          <p className="section-lede">
-            A model that notices, agents that investigate, a memory, a person who decides and plain code that guards the door.
-          </p>
+          <p className="section-lede">Scroll to deal the deck.</p>
         </header>
-        <motion.div ref={track} className="team-track" style={{ x }}>
-          {ORDER.map(({ id, stage }, i) => {
-            const part = PARTS[id];
-            return (
-              <article key={id} className={`team-card kind-${part.kind}`}>
-                <span className="team-index num">{String(i + 1).padStart(2, "0")}</span>
-                <span className="team-stage">{stage}</span>
-                <h3>
-                  <span className={`agent-dot agent-${part.role ?? id}`} aria-hidden="true" />
-                  {part.name}
-                </h3>
-                <p>{part.does}</p>
-                {part.fixedModel && <small>{part.fixedModel}</small>}
-              </article>
-            );
-          })}
-          <a className="team-card team-more" href={href({ page: "how" })}>
-            <h3>See them at work</h3>
-            <p>What each part said and which model ran it in the last real incident.</p>
-            <span className="team-arrow" aria-hidden="true" />
-          </a>
-        </motion.div>
-        <div className="team-progress" aria-hidden="true">
-          <motion.i style={{ width: bar }} />
+        <div className="deck" aria-live="polite">
+          <div className="deck-ring">
+            {ORDER.map(({ id }, i) => (
+              <DeckCard key={id} index={i} progress={progress} radius={radius} front={i === front} />
+            ))}
+          </div>
         </div>
+        <footer className="deck-foot">
+          <ol className="deck-dots" aria-label={`Part ${front + 1} of ${CARDS}: ${current.name}`}>
+            {ORDER.map(({ id }, i) => (
+              <li key={id} className={i === front ? "is-front" : i < front ? "is-past" : ""} />
+            ))}
+          </ol>
+          <a className="link-button" href={href({ page: "how" })}>
+            What each part did in the last real incident
+          </a>
+        </footer>
       </div>
     </section>
   );
