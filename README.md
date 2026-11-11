@@ -53,16 +53,29 @@ the camera to a new view of it.
 | `/incidents/<id>` | An investigation as it happens: each question, each specialist's tools and findings, the diagnosis, what memory recalled, the proposed fix, and the decision; after a fix, the alarm signal then and now |
 | `/how-it-works` | The agent team as a pipeline: what each part does, which model ran it and what it said in the last real incident |
 | `/results` | The evaluation |
+| `/status` | Each service now: operational, degraded, under investigation or down, with ten minutes of uptime, and how Vigil itself is set up |
+| `/audit` | Every decision about changing the shop (carried out, rehearsed, blocked or rejected), who approved it and why; downloadable as CSV |
+| `/policy` | What Vigil may do and who must agree, read from the running code (`GET /config`): the guardrails, the action catalogue, the model behind each step and its fallbacks, and the detector's settings |
 
 | | |
 |---|---|
 | ![Home](docs/images/war-room-opening.jpg) | ![A service](docs/images/service-page.jpg) |
 | ![Your decision](docs/images/war-room-decision.jpg) | ![Fixed](docs/images/war-room-fixed.jpg) |
 | ![How it works](docs/images/how-it-works.jpg) | ![All quiet](docs/images/war-room-quiet.jpg) |
+| ![Incidents](docs/images/incidents.jpg) | ![Status](docs/images/status.jpg) |
+| ![Audit log](docs/images/audit.jpg) | ![Command palette](docs/images/palette.jpg) |
 
 The decision panel asks the two questions an on-call engineer would, in order: is the diagnosis
 right, and what should happen now. Nothing changes until a human answers. "Break something"
 injects a real fault into the running shop.
+
+For the team that runs it: the incidents page gives the median time to diagnose, to decide and
+to recover, and how often reviewers confirmed the diagnosis; each incident downloads as a
+Markdown report for a postmortem; desktop notifications say when a fix is waiting for approval;
+and Ctrl+K (or /) jumps to any page, service or incident. Sound is off until switched on: a low
+hum, a falling two-note alert, a bell when a decision is needed and a rising chord when the fix
+lands, all synthesised in the browser. The replay has its own controls: pause, drag through the
+recording, jump to the alert, the diagnosis or the fix, and play at 1x, 2x or 4x.
 
 Published without a backend, the site replays a real recorded incident instead
 (`scripts/record_demo.py`): orders leaking memory on the live shop, caught 38 s after the fault,
