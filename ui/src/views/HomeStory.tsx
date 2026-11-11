@@ -94,7 +94,9 @@ interface Arc {
 }
 
 function arcFor(width: number): Arc {
-  const wide = width * (width < 700 ? 0.78 : width < 1300 ? 0.63 : 0.56);
+  // On a phone the arc is wider than the screen: the front card shows whole and its neighbours
+  // peek in from the edges, instead of all eleven crowding into 390 pixels.
+  const wide = width * (width < 700 ? 1.5 : width < 1300 ? 0.63 : 0.56);
   return { wide, deep: wide * 0.55 };
 }
 
