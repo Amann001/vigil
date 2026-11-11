@@ -117,7 +117,7 @@ def test_a_finished_investigation_cannot_be_reviewed_again(setup, tmp_path):
 def test_queue_and_audit_are_readable(setup):
     client, _ = setup
 
-    assert client.get("/health").json() == {"status": "ok", "queue": True}
+    assert client.get("/health").json()["queue"] is True
     assert client.get("/audit").json() == [{"outcome": "executed"}]
     assert client.get("/jobs").json()["counts"] == {"queued": 0}
 
@@ -200,3 +200,60 @@ def test_a_timeline_left_behind_by_a_stopped_worker_is_shown_as_stopped(tmp_path
 
     assert client.get("/live").json() == []
     assert client.get("/investigations/live-3").json()["status"] == "failed"
+
+
+def test_health_says_what_is_switched_on(setup):
+    client, _ = setup
+
+    health = client.get("/health").json()
+
+    assert health["status"] == "ok"
+    assert health["reviews"] is True and health["queue"] is True
+    assert health["version"]
+
+
+def test_the_policy_is_read_from_the_guardrails_the_code_enforces(setup):
+    from vigil.actions import ACTIONS, RESTART_COOLDOWN
+    from vigil.llm import ROLES
+    from vigil.policy import LIVE_ROLES
+
+    client, _ = setup
+
+    config = client.get("/config").json()
+
+    assert [a["name"] for a in config["actions"]] == list(ACTIONS)
+    assert config["guardrails"]["restart_cooldown_minutes"] == RESTART_COOLDOWN.total_seconds() / 60
+    assert list(config["models"]) == list(LIVE_ROLES)
+    assert config["models"]["logs"][0] == "/".join(ROLES["logs"][0])
+    assert config["reviews_enabled"] is True
+
+
+def test_the_list_carries_when_each_incident_was_decided_and_acted_on(tmp_path):
+    report = {
+        **REPORT,
+        "id": "live-2",
+        "status": "confirmed",
+        "diagnosis": {**REPORT["diagnosis"], "affected_services": ["storefront"]},
+        "review": {"verdict": "confirmed", "by": "war room", "at": "2026-11-08T08:00:00+00:00"},
+        "action": {"outcome": "executed", "at": "2026-11-08T08:00:05+00:00"},
+    }
+    (tmp_path / "live-2.json").write_text(json.dumps(report))
+    client = TestClient(create_app(reports_dir=tmp_path))
+
+    (item,) = client.get("/investigations").json()
+
+    assert item["decided_at"] == report["review"]["at"]
+    assert item["decided_by"] == "war room"
+    assert item["acted_at"] == report["action"]["at"]
+    assert item["affected_services"] == ["storefront"]
+
+
+def test_every_response_carries_the_security_headers(setup):
+    from vigil.api import SECURITY_HEADERS
+
+    client, _ = setup
+
+    for path in ("/health", "/investigations", "/missing"):
+        response = client.get(path)
+        for header, value in SECURITY_HEADERS.items():
+            assert response.headers[header] == value, (path, header)

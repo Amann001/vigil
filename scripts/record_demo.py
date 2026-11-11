@@ -55,6 +55,9 @@ def main() -> None:
         "system0": system0,
         "threshold": system0.get("score", {}).get("threshold"),
         "details0": details,
+        # The operating policy, for the policy page. Nothing in the replay can change the shop,
+        # so it says reviews and the queue are off there.
+        "config": {**client.get("/config").json(), "reviews_enabled": False, "queue": False},
         "frames": [],
     }
     seen: dict[str, str] = {}

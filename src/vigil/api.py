@@ -1,6 +1,7 @@
 """Vigil's HTTP API, for the war-room UI and other tools.
 
-    GET  /health                          liveness
+    GET  /health                          liveness, the version and what is switched on
+    GET  /config                          the operating policy: actions, guardrails, models
     GET  /investigations                  every investigation, newest first, in brief
     GET  /investigations/{id}             one investigation in full, with its incident report
     POST /investigations/{id}/review      a human's decision (needs the API token)
@@ -24,6 +25,7 @@ import hmac
 import json
 import os
 import time
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Literal
 
@@ -35,6 +37,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from vigil.actions import AUDIT_LOG, AuditLog
 from vigil.investigations import LIVE_DIR, REPORTS_DIR, load_reports
+from vigil.policy import policy
 from vigil.worker import enqueue_review
 
 
@@ -54,6 +57,18 @@ class PageFiles(StaticFiles):
 
 
 API_PORT = 8030
+try:
+    VERSION = version("vigil")
+except PackageNotFoundError:  # running from a source tree that was never installed
+    VERSION = "0.0.0"
+# Sent with every response: no guessing content types, no embedding the war room in another
+# site's frame (where a click could be hijacked), and no leaking addresses to other sites.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
 Service = Literal["storefront", "orders", "payments", "inventory"]
 
 
@@ -102,8 +117,14 @@ def create_app(
     chaos=_shop_chaos,
     ui_dir: Path | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Vigil", description="The AI on-call engineer.")
+    app = FastAPI(title="Vigil", description="The AI on-call engineer.", version=VERSION)
     live_dir = reports_dir / LIVE_DIR
+
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers.update(SECURITY_HEADERS)
+        return response
 
     def timelines() -> list[dict]:
         if not live_dir.exists():
@@ -145,7 +166,16 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict:
-        return {"status": "ok", "queue": queue is not None}
+        return {
+            "status": "ok",
+            "version": VERSION,
+            "queue": queue is not None,
+            "reviews": token is not None,
+        }
+
+    @app.get("/config")
+    def config() -> dict:
+        return {**policy(), "reviews_enabled": token is not None, "queue": queue is not None}
 
     @app.get("/investigations")
     def investigations() -> list[dict]:
@@ -160,6 +190,10 @@ def create_app(
                 "proposal": r.get("proposal"),
                 "seconds": r.get("seconds"),
                 "outcome": (r.get("action") or {}).get("outcome"),
+                "affected_services": r["diagnosis"].get("affected_services", []),
+                "decided_at": (r.get("review") or {}).get("at"),
+                "decided_by": (r.get("review") or {}).get("by"),
+                "acted_at": (r.get("action") or {}).get("at"),
             }
             for r in reversed(load_reports(reports_dir))
         ]
