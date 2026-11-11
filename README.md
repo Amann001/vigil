@@ -10,11 +10,11 @@ with a team of LLM agents, and fixes them only after a human approves.
 [![CI](https://github.com/Amann001/vigil/actions/workflows/ci.yml/badge.svg)](https://github.com/Amann001/vigil/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Status](https://img.shields.io/badge/status-in%20development-orange)
+[![Live demo](https://img.shields.io/badge/live%20demo-vigil--two--woad.vercel.app-ffa53d)](https://vigil-two-woad.vercel.app)
 
 <img src="docs/images/war-room-recovered.jpg" alt="Vigil's war room after an incident: the orders star glows aurora green and the headline reads Orders is back" width="100%">
 
-**[Watch the 2-minute demo](ui/public/film/vigil-demo.mp4)**: a real incident, from the fault to the approved fix.
+**[Open the site](https://vigil-two-woad.vercel.app)**, or **[watch the 2-minute film](https://vigil-two-woad.vercel.app/film/vigil-demo.mp4)**: a real incident, from the fault to the approved fix.
 
 </div>
 

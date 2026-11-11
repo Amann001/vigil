@@ -6,7 +6,10 @@ export function RisingText({ text, className, delay = 0 }: { text: string; class
   const words = text.split(" ");
   let index = 0;
   return (
-    <span className={className} aria-label={text}>
+    <span className={className}>
+      {/* The readable text for screen readers; the animated letters below are hidden from them.
+          (aria-label is not allowed on a plain span, so it is real, visually hidden text.) */}
+      <span className="visually-hidden">{text}</span>
       {words.map((word, w) => (
         <Fragment key={`${word}-${w}`}>
         <span className="rise-word" aria-hidden="true">

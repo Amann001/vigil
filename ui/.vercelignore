@@ -1,0 +1,6 @@
+# Only the site's source goes to Vercel; it builds dist itself.
+node_modules
+dist
+tests
+video-frames
+scripts/record-video.mjs
