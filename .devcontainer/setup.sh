@@ -5,7 +5,7 @@ set -euo pipefail
 pip install --quiet uv==0.11.19
 # No PyTorch: the live system runs the exported model with ONNX Runtime (saves ~0.6 GB).
 uv sync --locked --no-group train
-uv run python scripts/install_prometheus.py
+uv run --no-sync python scripts/install_prometheus.py  # --no-sync: keep PyTorch out
 
 # The campaign the anomaly detector learns normal traffic from.
 mkdir -p data/datasets/vigil

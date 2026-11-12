@@ -8,6 +8,18 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# A codespace's terminals get its secrets, but a session opened with `gh codespace ssh` does
+# not: read any that are missing from the file the codespace keeps them in.
+shared=/workspaces/.codespaces/shared/.env
+if [ -f "$shared" ]; then
+    while IFS='=' read -r key value; do
+        [[ "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]] || continue
+        [ -n "${!key:-}" ] && continue
+        value="${value%\"}"; value="${value#\"}"
+        export "$key=$value"
+    done < "$shared"
+fi
+
 missing=()
 for name in GEMINI_API_KEY GROQ_API_KEY DATABASE_URL VIGIL_API_TOKEN; do
     [ -n "${!name:-}" ] || grep -q "^$name=." .env 2>/dev/null || missing+=("$name")
@@ -22,6 +34,8 @@ fi
 # The same safeguards as any public host: reports and the audit log kept in the database, and
 # at most 12 investigations a day so a run of alarms cannot use up the free model quota.
 export VIGIL_ARCHIVE=1 VIGIL_DAILY_INVESTIGATIONS=12 PYTHONUNBUFFERED=1
+# Run with what is installed: a plain `uv run` would also install the training group (PyTorch).
+export UV_NO_SYNC=1
 
 # Customers at the pace the detector learned from (3 sessions a second, a day every 30 min).
 uv run python -m shop.launch --rate 3 --cycle-minutes 30 > data/shop.log 2>&1 &
