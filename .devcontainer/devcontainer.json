@@ -3,13 +3,10 @@
 // the shop and Vigil and prints the public link. See "Run it live" in the README.
 {
   "name": "Vigil live demo",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    // So `gh codespace ssh` can start and check the demo from another machine.
-    "ghcr.io/devcontainers/features/sshd:1": {}
-  },
+  // GitHub's standard Codespaces image: Python, Node, the GitHub CLI and an SSH server are
+  // already in it, and it is cached on Codespaces hosts. (Adding them as features to the slim
+  // Python image failed: its Yarn package source has an expired signing key, so apt failed.)
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
   // Vigil runs eight processes (four shop services, customers, Prometheus, the API, the
   // watcher, a worker): 2 cores and 8 GB is the smallest machine that holds them comfortably.
   "hostRequirements": { "cpus": 2, "memory": "8gb" },
