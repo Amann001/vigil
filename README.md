@@ -83,6 +83,23 @@ diagnosed in 102 s, the restart approved in the UI. The film is a tour of that r
 in headless Chrome by `ui/scripts/record-video.mjs`; `ui/scripts/serve-replay.mjs` serves the
 built site the way a static host does.
 
+## Run it live
+
+The site above is a replay. The real system (the shop, Prometheus, the watcher, the agents
+and the war room) runs in a GitHub Codespace, free for personal accounts with no card:
+
+1. Once, at [github.com/settings/codespaces](https://github.com/settings/codespaces), add four
+   secrets with access to this repository: `GEMINI_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL`
+   (a Neon database of its own) and `VIGIL_API_TOKEN` (your password for breaking the shop
+   and approving fixes).
+2. On the repository page: **Code → Codespaces → Create codespace on main**. The first start
+   installs everything (about five minutes); later starts take seconds.
+3. In its terminal: `bash scripts/live.sh`. It prints a public link to the live war room.
+
+Anyone with the link can watch; changing anything needs the token. Stop the codespace when you
+are done (it also stops itself after 30 idle minutes), and reuse the same one next time: its
+link stays the same.
+
 ## Architecture
 
 ```mermaid
