@@ -2,6 +2,11 @@
 
 ## Milestones
 
+Milestones 1 to 7 are done. The public demo is live at
+[vigil-two-woad.vercel.app](https://vigil-two-woad.vercel.app) (a replay of a real incident),
+and the whole system runs live on demand in a GitHub Codespace (see "Run it live" in the
+README). Milestone 8 is an optional stretch.
+
 | # | Milestone | Done when |
 |---|---|---|
 | 1 | **Demo system.** 4 microservices, Prometheus metrics, structured JSON logs, a traffic generator, fault injection and a single launcher script | One command starts everything and any failure can be injected on demand |
