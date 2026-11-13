@@ -3,7 +3,7 @@
 ## Milestones
 
 Milestones 1 to 7 are done. The public demo is live at
-[vigil-two-woad.vercel.app](https://vigil-two-woad.vercel.app) (a replay of a real incident),
+[vigil-aman.vercel.app](https://vigil-aman.vercel.app) (a replay of a real incident),
 and the whole system runs live on demand in a GitHub Codespace (see "Run it live" in the
 README). Milestone 8 is an optional stretch.
 
