@@ -104,8 +104,7 @@ export function HowItWorks({ list }: { list: InvestigationSummary[] | null }) {
           <RisingText text="A team, not a chatbot." />
         </h1>
         <p className="how-lede">
-          Each part of Vigil does one job, and the language models never touch the shop directly. Choose a part to see what it
-          does, what runs it and what it said in the last real incident.
+          Each part does one job. Pick one to see it at work.
         </p>
       </header>
 

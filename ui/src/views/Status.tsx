@@ -64,8 +64,7 @@ export function Status({
             <RisingText key={title} text={title} />
           </h1>
           <p className="doc-lede">
-            Each service of the shop as Vigil sees it now, and how much of the last ten minutes it was up. Updated every 5
-            seconds{mode === "demo" ? ", from the recording" : ""}.
+            Each service now, and its last ten minutes{mode === "demo" ? ", from the recording" : ""}.
           </p>
         </header>
 

@@ -32,9 +32,8 @@ export function Scores() {
             <RisingText text="Five incidents nobody tuned it for. Five right." />
           </h1>
           <p className="lede">
-            Someone else wrote six failure scenarios; a separate agent turned them into tests the builder never saw.
-            Vigil found the cause, the kind of failure and the right fix for all five incidents, left the sixth
-            (not an incident) alone, proposed nothing unsafe and raised no false alarms.
+            Six scenarios written by someone else, never seen while building. Five incidents right, the sixth correctly left
+            alone, nothing unsafe, no false alarms.
           </p>
           <ol className="tally" aria-label="Hidden test results">
             {[1, 2, 3, 4, 5].map((n) => (
@@ -62,8 +61,7 @@ export function Scores() {
         <section className="ablation">
           <h2>What each part is worth</h2>
           <p className="lede">
-            14 public scenarios, 12 of them incidents, investigated by Vigil and by versions of it with one part
-            removed. Bars count fully right answers: cause, kind of failure and fix.
+            12 incidents, with one part removed at a time. Bars count fully right answers.
           </p>
           <ul className="bars">
             {ABLATION.map((row, i) => (

@@ -64,8 +64,7 @@ export function Audit({ mode }: { mode: "live" | "demo" | "unknown" }) {
             <RisingText text="Audit log" />
           </h1>
           <p className="doc-lede">
-            Every decision about changing the shop: what was asked for, who approved it, and whether the guardrails let it
-            through. Written by plain code, not by the agents, and never edited.
+            Every change, who approved it, and whether the guardrails allowed it.
           </p>
         </header>
 

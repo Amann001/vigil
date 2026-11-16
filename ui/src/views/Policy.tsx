@@ -38,8 +38,7 @@ export function Policy({ mode }: { mode: "live" | "demo" | "unknown" }) {
             <RisingText text="What Vigil may do" />
           </h1>
           <p className="doc-lede">
-            The agents can read anything. Changing the shop is a short list of actions, each needing a person's yes and
-            checked by plain code before it runs. Read from the running system, not written by hand.
+            Agents read anything. Changes need a person, and pass code checks first. Read live from the system.
           </p>
         </header>
 

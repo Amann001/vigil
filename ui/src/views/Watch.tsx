@@ -29,8 +29,8 @@ function useHeadline(s: Situation, system: SystemView | null): { title: string; 
     return {
       title: d ? `${headline(d)}.` : service ? `Something is wrong with ${serviceName[service]}.` : "Something is wrong.",
       line: d
-        ? `Diagnosis ready, choosing a fix. Started ${duration(seconds)} ago.`
-        : `${agents > 1 ? `${agents} agents are` : "The supervisor is"} investigating. Started ${duration(seconds)} ago.`,
+        ? `Choosing a fix. ${duration(seconds)} in.`
+        : `${agents > 1 ? `${agents} agents` : "The supervisor"} investigating. ${duration(seconds)} in.`,
     };
   }
   if (s.kind === "decide") {
@@ -40,29 +40,29 @@ function useHeadline(s: Situation, system: SystemView | null): { title: string; 
       title: `${d}.`,
       line:
         s.pending.length > 1
-          ? `${s.pending.length} diagnoses are waiting for your call. Nothing changes until you decide.`
-          : `Vigil has a diagnosis and a proposed fix. Nothing changes until you decide.`,
+          ? `${s.pending.length} fixes waiting for your call.`
+          : `A fix is waiting for your call.`,
     };
   }
   if (s.kind === "recovered" && s.recent) {
     return {
       title: `${serviceName[s.recent.proposal?.service ?? s.recent.root_cause_service ?? ""] ?? "The shop"} is back.`,
-      line: `${outcomeName(s.recent.outcome)} ${ago(s.recent.alert_at)}. Vigil keeps watching.`,
+      line: `${outcomeName(s.recent.outcome)} ${ago(s.recent.alert_at)}.`,
     };
   }
   if (s.kind === "offline") {
     return {
       title: "No signal.",
-      line: "Vigil cannot read the shop's metrics. Start the shop and Prometheus to begin the watch.",
+      line: "Start the shop and Prometheus to begin.",
     };
   }
   const down = SERVICES.filter((sv) => system?.services?.[sv]?.latest.up === null);
   if (down.length) {
-    return { title: `${serviceName[down[0]]} is not responding.`, line: "The detector is confirming it before raising an alert." };
+    return { title: `${serviceName[down[0]]} is not responding.`, line: "Confirming before raising an alert." };
   }
   return {
     title: "All quiet.",
-    line: "Four services healthy. Vigil reads 40 signals every 5 seconds and will wake the team if any turn strange.",
+    line: "4 services healthy. 40 signals, read every 5 s.",
   };
 }
 
@@ -242,23 +242,23 @@ export function Watch({
 const GUIDE: Record<string, { step: number; title: string; text: string }> = {
   quiet: {
     step: 1,
-    title: "A replay of a real incident",
-    text: "This is Vigil watching its demo shop, recorded from a real run. Keep an eye on the Orders star: something is about to go wrong with it.",
+    title: "A real incident, replayed",
+    text: "Watch the Orders star.",
   },
   investigating: {
     step: 2,
     title: "Vigil noticed on its own",
-    text: "Its detector raised the alarm and AI agents are investigating. Follow the investigation to see each question they ask and what they find.",
+    text: "Agents are investigating. Follow along.",
   },
   decide: {
     step: 3,
     title: "Your turn",
-    text: "Vigil never changes anything without a person. Review the diagnosis and approve the fix; in the replay, nothing real is touched.",
+    text: "Review the diagnosis and approve the fix.",
   },
   recovered: {
     step: 4,
     title: "Fixed, with your approval",
-    text: "Open the incident to see the proof it worked, or Scores for how Vigil is tested. The replay starts again shortly.",
+    text: "Open the incident for the proof.",
   },
 };
 
