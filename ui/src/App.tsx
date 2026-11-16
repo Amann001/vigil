@@ -2,6 +2,7 @@ import { AnimatePresence, MotionConfig } from "motion/react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { CommandPalette } from "./components/CommandPalette";
 import { Intro, introSeen } from "./components/Intro";
+import { ErrorBoundary, hasWebGL, loadOnce } from "./components/Safety";
 import { WatchBar } from "./components/WatchBar";
 import { api, useMode, usePoll } from "./lib/api";
 import { useDecisionNotifications } from "./lib/notify";
@@ -24,9 +25,11 @@ import { Status } from "./views/Status";
 import { Watch } from "./views/Watch";
 import "./styles/app.css";
 
-const Constellation = lazy(() =>
-  import("./scene/Constellation").then((m) => ({ default: m.Constellation })),
+const Constellation = lazy(
+  loadOnce(() => import("./scene/Constellation").then((m) => ({ default: m.Constellation }))),
 );
+// Checked once: without 3D graphics the site runs on the plain night sky, with every page working.
+const WEBGL = hasWebGL();
 
 function titleOf(route: Route): string {
   switch (route.page) {
@@ -112,6 +115,8 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className={`sky sky-${focus?.tone ?? (now.kind === "offline" ? "offline" : "calm")}`} />
+      {WEBGL && (
+      <ErrorBoundary>
       <Suspense fallback={null}>
         <Constellation
           system={system}
@@ -128,6 +133,8 @@ export function App() {
           fromAfar={intro}
         />
       </Suspense>
+      </ErrorBoundary>
+      )}
       <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
       <WatchBar route={route} system={system} mode={mode} situation={now} />
       <CommandPalette list={list} mode={mode} />

@@ -3,13 +3,14 @@
 //   npm run build && npm run test:e2e
 //
 // CHROME_PATH picks the browser; on Linux (CI) the 3D scene renders in software.
+// SITE_URL runs the same tests against a deployed site instead (the daily check of production).
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import puppeteer from "puppeteer-core";
 import { serve } from "../scripts/serve-replay.mjs";
 
 const PORT = 8047;
-const SITE = `http://127.0.0.1:${PORT}`;
+const SITE = process.env.SITE_URL?.replace(/\/$/, "") ?? `http://127.0.0.1:${PORT}`;
 const CHROME =
   process.env.CHROME_PATH ??
   (process.platform === "win32" ? "C:/Program Files/Google/Chrome/Application/chrome.exe" : "/usr/bin/google-chrome");
@@ -22,7 +23,7 @@ let server;
 let browser;
 
 before(async () => {
-  server = await serve(PORT);
+  if (!process.env.SITE_URL) server = await serve(PORT);
   browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ARGS });
 });
 
@@ -187,5 +188,34 @@ describe("the home page", () => {
     await page.waitForSelector(".site-menu a");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
     await page.close();
+  });
+});
+
+describe("without 3D graphics", () => {
+  test("every page still opens and works, on the plain night sky", async () => {
+    // Some work laptops and older phones switch WebGL off; the site must not depend on it.
+    const plain = await puppeteer.launch({
+      executablePath: CHROME,
+      headless: true,
+      args: [...ARGS, "--disable-webgl", "--disable-3d-apis"],
+    });
+    const page = await plain.newPage();
+    await page.setViewport({ width: 1280, height: 800 });
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.evaluateOnNewDocument(() => sessionStorage.setItem("vigil.intro", "1"));
+    for (const [path, heading] of [
+      ["/", ".hero-title"],
+      ["/war-room", ".status-title"],
+      ["/services/orders", ".service-name"],
+      ["/incidents", ".history-head h1"],
+    ]) {
+      await page.goto(`${SITE}${path}`, { waitUntil: "networkidle0" });
+      await page.waitForSelector(heading, { timeout: 15000 });
+    }
+    assert.equal(await page.$(".constellation canvas"), null, "no 3D canvas without WebGL");
+    assert.equal(await page.$(".site-error"), null);
+    assert.deepEqual(errors, []);
+    await plain.close();
   });
 });

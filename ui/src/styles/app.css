@@ -307,3 +307,24 @@
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* Shown only if the whole site fails to start. */
+.site-error {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: var(--midnight);
+}
+
+.site-error h1 {
+  font-size: var(--step-4);
+}
+
+.site-error p {
+  color: var(--haze);
+}
