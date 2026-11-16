@@ -151,7 +151,7 @@
   margin: 0;
   font-family: var(--display);
   font-size: var(--step-3);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1.1;
 }

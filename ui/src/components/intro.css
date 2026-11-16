@@ -13,7 +13,7 @@
 
 .intro-word {
   font-size: clamp(5rem, 19vw, 15rem);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.045em;
   line-height: 0.9;
   color: var(--starlight);

@@ -282,7 +282,7 @@ body:has(.home) {
 .proof-number {
   font-family: var(--display);
   font-size: clamp(6rem, 15vw, 13rem);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.07em;
   line-height: 0.85;
   background: linear-gradient(160deg, var(--starlight) 30%, var(--aurora));
@@ -329,7 +329,7 @@ body:has(.home) {
 .footer-word {
   font-family: var(--display);
   font-size: clamp(3.6rem, 9vw, 7rem);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.07em;
   line-height: 0.9;
   background: linear-gradient(160deg, var(--starlight), rgb(232 237 255 / 0.25));

@@ -89,7 +89,7 @@
 }
 
 .bar-label strong {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .bar-label span {
@@ -135,7 +135,7 @@
 .bar-right {
   font-family: var(--display);
   font-size: var(--step-2);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .bar-unsafe {
@@ -180,7 +180,7 @@
 .fact dt {
   font-family: var(--display);
   font-size: var(--step-3);
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: 6px;
 }
 

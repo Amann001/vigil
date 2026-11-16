@@ -1,6 +1,5 @@
-@import "@fontsource-variable/sora/wght.css";
-@import "@fontsource-variable/geist/wght.css";
-@import "@fontsource-variable/geist-mono/wght.css";
+@import "@fontsource-variable/host-grotesk/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
 
 /*
   Vigil keeps the night watch. The palette is a night sky and the lights in it:
@@ -23,9 +22,11 @@
   --line: rgb(232 237 255 / 0.09);
   --line-strong: rgb(232 237 255 / 0.18);
 
-  --display: "Sora Variable", "Segoe UI", system-ui, sans-serif;
-  --text: "Geist Variable", system-ui, sans-serif;
-  --code: "Geist Mono Variable", ui-monospace, monospace;
+  /* One family for headings and text, at medium weights with tight spacing: the quiet,
+     precise type of tools engineers use. JetBrains Mono for data and numbers. */
+  --display: "Host Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+  --text: "Host Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+  --code: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", monospace;
 
   /* A modular scale (ratio 1.25) from a 15 px body. */
   --step--1: 0.8rem;
@@ -80,9 +81,9 @@ h1,
 h2,
 h3 {
   font-family: var(--display);
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.04;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.04em;
 }
 
 button,

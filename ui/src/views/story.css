@@ -28,7 +28,7 @@
   max-width: 22em;
   font-family: var(--display);
   font-size: clamp(2rem, 4.6vw, 4.2rem);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.12;
   letter-spacing: -0.045em;
 }
@@ -123,7 +123,7 @@
 .deck-index {
   font-family: var(--display);
   font-size: calc(var(--card-w) * 0.3);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 0.85;
   letter-spacing: -0.07em;
   background: linear-gradient(180deg, rgb(232 237 255 / 0.5), rgb(232 237 255 / 0.04));
@@ -497,7 +497,7 @@
 .number dt {
   font-family: var(--display);
   font-size: clamp(3.2rem, 7vw, 6rem);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 0.95;
   letter-spacing: -0.06em;
   background: linear-gradient(160deg, var(--starlight) 35%, #8fb7ff);
@@ -548,7 +548,7 @@
 .marquee span {
   font-family: var(--display);
   font-size: clamp(1.6rem, 3.4vw, 2.8rem);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.04em;
   white-space: nowrap;
   color: rgb(232 237 255 / 0.22);

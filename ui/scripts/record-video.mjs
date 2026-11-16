@@ -31,7 +31,7 @@ const OVERLAY = `
   .tour-caption { position: fixed; right: 32px; bottom: 30px; z-index: 9999; max-width: 470px;
     padding: 16px 20px; border-radius: 14px; background: rgb(10 16 40 / 0.72);
     border: 1px solid rgb(232 237 255 / 0.12); backdrop-filter: blur(14px);
-    font: 500 19px/1.4 "Geist Variable", "Geist", system-ui, sans-serif; color: #e8edff;
+    font: 400 19px/1.4 "Host Grotesk Variable", system-ui, sans-serif; color: #e8edff;
     opacity: 0; transform: translateY(10px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
   .tour-caption.is-on { opacity: 1; transform: none; }
   .tour-caption small { display: block; margin-bottom: 4px; font-size: 14px; color: #ffa53d; font-weight: 600; }
