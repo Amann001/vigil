@@ -27,41 +27,10 @@
   letter-spacing: -0.03em;
 }
 
-/* The watcher's eye: a slow breath when all is quiet, quick and amber when it is working. */
-.brand-eye {
-  position: relative;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1px solid rgb(232 237 255 / 0.4);
-}
-
-.brand-eye::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--starlight);
-  box-shadow: 0 0 10px var(--starlight);
-  animation: breathe 4.5s ease-in-out infinite;
-}
-
-.eye-investigating::after,
-.eye-decide::after {
-  background: var(--sodium);
-  box-shadow: 0 0 12px var(--sodium);
-  animation-duration: 1.1s;
-}
-
-.eye-recovered::after {
-  background: var(--aurora);
-  box-shadow: 0 0 12px var(--aurora);
-}
-
-.eye-offline::after {
-  background: var(--dim);
-  box-shadow: none;
-  animation: none;
+/* The mark sits a hair lower to meet the wordmark's baseline optically. */
+.brand-mark {
+  margin-top: 1px;
+  color: var(--starlight);
 }
 
 @keyframes breathe {

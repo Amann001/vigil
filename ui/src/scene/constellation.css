@@ -7,6 +7,14 @@
 .constellation canvas {
   touch-action: pan-y;
   transition: opacity 1.2s var(--ease-out), filter 1.2s var(--ease-out);
+  /* The page is readable on the painted sky first; the 3D stars arrive after and fade in. */
+  animation: sky-in 1.6s var(--ease-out) backwards;
+}
+
+@keyframes sky-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Behind a page of text the sky steps back: dimmer and softer, still moving. */

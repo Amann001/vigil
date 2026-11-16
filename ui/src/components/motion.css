@@ -89,3 +89,40 @@ html.lenis body {
 .lenis.lenis-stopped {
   overflow: hidden;
 }
+
+/* The pointer's trailing ring. */
+.cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 600;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.cursor.is-gone {
+  opacity: 0;
+}
+
+.cursor-ring {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgb(232 237 255 / 0.35);
+  transition: transform 0.35s var(--ease-out), border-color 0.35s, background 0.35s;
+}
+
+.cursor.is-over .cursor-ring {
+  transform: scale(1.5);
+  border-color: rgb(232 237 255 / 0.6);
+  background: rgb(232 237 255 / 0.05);
+}
+
+.cursor.is-star .cursor-ring {
+  transform: scale(2.1);
+  border-color: var(--state);
+  background: color-mix(in srgb, var(--state) 8%, transparent);
+}

@@ -421,7 +421,7 @@ function aimOf(view: View, aspect: number): { point: THREE.Vector3; zoom: number
   switch (view.kind) {
     case "hero":
       // On a tall phone screen the words sit below the stars instead of beside them.
-      return aspect < 0.9 ? { point: PHONE_HERO_AIM, zoom: 1, shift: 0 } : { point: CENTRE, zoom: 1.45, shift: -3.8 };
+      return aspect < 0.9 ? { point: PHONE_HERO_AIM, zoom: 1, shift: 0 } : { point: CENTRE, zoom: 1.5, shift: -4.6 };
     case "far":
       return { point: CENTRE, zoom: 1.75, shift: 0 };
     case "star":

@@ -158,6 +158,20 @@ export function Decision({ investigation, mode }: { investigation: Investigation
   );
 }
 
+/** The moment a fix lands: a ring of light goes out and a check draws itself. */
+function Seal() {
+  const ease = [0.16, 1, 0.3, 1] as const;
+  return (
+    <div className="seal" aria-hidden="true">
+      <motion.span className="seal-ring" initial={{ scale: 0.6, opacity: 0.9 }} animate={{ scale: 2.4, opacity: 0 }} transition={{ duration: 1.4, ease }} />
+      <motion.svg viewBox="0 0 48 48" width="48" height="48" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}>
+        <circle cx="24" cy="24" r="22" />
+        <motion.path d="M14 24.5 21 31.5 34.5 17" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.25, duration: 0.55, ease }} />
+      </motion.svg>
+    </div>
+  );
+}
+
 function Decided({ investigation, queued }: { investigation: Investigation; queued: boolean }) {
   const review = investigation.review;
   const action = investigation.action;
@@ -185,6 +199,7 @@ function Decided({ investigation, queued }: { investigation: Investigation; queu
   const fixed = action?.outcome === "executed";
   return (
     <section className={`decision is-done ${fixed ? "is-fixed" : ""}`}>
+      {fixed && <Seal />}
       <h2>{outcomeName(action?.outcome, action?.dry_run) || "Decided"}</h2>
       <dl className="decided">
         {review && (

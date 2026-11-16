@@ -2,6 +2,7 @@ import { AnimatePresence, MotionConfig } from "motion/react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { CommandPalette } from "./components/CommandPalette";
 import { Intro, introSeen } from "./components/Intro";
+import { Cursor } from "./components/Motion";
 import { ErrorBoundary, hasWebGL, loadOnce } from "./components/Safety";
 import { WatchBar } from "./components/WatchBar";
 import { api, useMode, usePoll } from "./lib/api";
@@ -19,6 +20,7 @@ import { HowItWorks } from "./views/HowItWorks";
 import { Incident } from "./views/Incident";
 import { Lost } from "./views/Lost";
 import { Policy } from "./views/Policy";
+import { Run } from "./views/Run";
 import { Scores } from "./views/Scores";
 import { ServicePage } from "./views/ServicePage";
 import { Status } from "./views/Status";
@@ -30,6 +32,21 @@ const Constellation = lazy(
 );
 // Checked once: without 3D graphics the site runs on the plain night sky, with every page working.
 const WEBGL = hasWebGL();
+
+/*
+  The home page's "one night" as the sky plays it: for each step of the story, how the Orders star
+  looks and which agents circle it. The same tones and comets the war room uses for a real
+  incident, so the replay on the home page is the product, not an illustration of it.
+*/
+const STORY: { tone: "calm" | "sodium" | "aurora"; agents: string[] }[] = [
+  { tone: "calm", agents: [] },
+  { tone: "sodium", agents: [] },
+  { tone: "sodium", agents: ["logs", "metrics", "deploy"] },
+  { tone: "sodium", agents: ["diagnose", "recall"] },
+  { tone: "sodium", agents: ["propose"] },
+  { tone: "aurora", agents: [] },
+];
+const STORY_SERVICE: Service = "orders";
 
 function titleOf(route: Route): string {
   switch (route.page) {
@@ -53,6 +70,8 @@ function titleOf(route: Route): string {
       return "Audit log | Vigil";
     case "policy":
       return "Policy | Vigil";
+    case "run":
+      return "Run it | Vigil";
     case "lost":
       return "Lost in space | Vigil";
   }
@@ -65,8 +84,11 @@ export function App() {
   const list = usePoll(api.investigations, 4000, mode).data;
   const live = usePoll(api.live, 1500, mode).data;
   const [hovered, setHovered] = useState<Service | null>(null);
+  // A star under the pointer, for the cursor (an incident page also points at stars, by hovered).
+  const [starHover, setStarHover] = useState<Service | null>(null);
   const [intro, setIntro] = useState(() => !introSeen());
   const [pastHero, setPastHero] = useState(false);
+  const [storyStep, setStoryStep] = useState(-1);
 
   const now = situation(system, live, list);
   const open = route.page === "incident" ? route.id : null;
@@ -76,9 +98,15 @@ export function App() {
     `${open}-${mode}`,
   ).data;
 
+  // The logo and a few accents take the colour of the shop's state (see brand.css).
+  useEffect(() => {
+    document.documentElement.dataset.state = now.kind;
+  }, [now.kind]);
+
   useEffect(() => {
     document.title = titleOf(route);
     setHovered(null);
+    setStarHover(null);
   }, [route]);
 
   const pageKey = route.page === "incident" ? `incident/${route.id}` : route.page === "service" ? `service/${route.service}` : route.page;
@@ -86,8 +114,11 @@ export function App() {
   useDecisionNotifications(now.pending, mode === "live");
 
   const incidentService = route.page === "incident" ? serviceOf(openInvestigation) : null;
+  const story = route.page === "home" && storyStep >= 0 ? STORY[storyStep] : null;
   const view: View =
-    route.page === "home"
+    story
+      ? { kind: "star", service: STORY_SERVICE, side: "right" }
+      : route.page === "home"
       ? { kind: "hero" }
       : route.page === "watch"
         ? { kind: "wide" }
@@ -99,8 +130,9 @@ export function App() {
               ? { kind: "wide" }
               : { kind: "far" };
 
-  const focus =
-    route.page === "incident" && openInvestigation && incidentService
+  const focus = story
+    ? { service: STORY_SERVICE, tone: story.tone }
+    : route.page === "incident" && openInvestigation && incidentService
       ? {
           service: incidentService,
           tone:
@@ -115,6 +147,7 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="grain" aria-hidden="true" />
+      <Cursor star={starHover !== null} />
       <div className={`sky sky-${focus?.tone ?? (now.kind === "offline" ? "offline" : "calm")}`} />
       {WEBGL && (
       <ErrorBoundary>
@@ -122,14 +155,17 @@ export function App() {
         <Constellation
           system={system}
           focus={focus}
-          agents={now.agents}
+          agents={story ? story.agents : now.agents}
           selected={hovered}
           view={view}
-          dim={["history", "how", "scores", "lost", "status", "audit", "policy"].includes(route.page)}
-          soft={route.page === "home" && pastHero}
+          dim={["history", "how", "scores", "lost", "status", "audit", "policy", "run"].includes(route.page)}
+          soft={route.page === "home" && pastHero && !story}
           warp={pageKey}
           onSelect={(service) => service && go({ page: "service", service })}
-          onHover={setHovered}
+          onHover={(service) => {
+            setHovered(service);
+            setStarHover(service);
+          }}
           linkTo={(service) => href({ page: "service", service })}
           fromAfar={intro}
         />
@@ -140,7 +176,7 @@ export function App() {
       <WatchBar route={route} system={system} mode={mode} situation={now} />
       <CommandPalette list={list} mode={mode} />
       <AnimatePresence mode="wait">
-        {!intro && route.page === "home" && <Home key="home" situation={now} system={system} list={list} onPastHero={setPastHero} />}
+        {!intro && route.page === "home" && <Home key="home" situation={now} system={system} list={list} onPastHero={setPastHero} onStory={setStoryStep} />}
         {!intro && route.page === "watch" && (
           <Watch key="watch" system={system} situation={now} list={list} mode={mode} />
         )}
@@ -170,6 +206,7 @@ export function App() {
         {route.page === "status" && <Status key="status" system={system} situation={now} list={list} mode={mode} />}
         {route.page === "audit" && <Audit key="audit" mode={mode} />}
         {route.page === "policy" && <Policy key="policy" mode={mode} />}
+        {route.page === "run" && <Run key="run" />}
         {route.page === "lost" && <Lost key="lost" />}
       </AnimatePresence>
     </MotionConfig>

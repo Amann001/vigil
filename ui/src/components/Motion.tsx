@@ -113,3 +113,44 @@ export function useSmoothScroll(on: boolean) {
     return () => stop();
   }, [on]);
 }
+
+/**
+ * A soft ring that trails the pointer: it widens over anything clickable, and wider still, in the
+ * shop's colour, over a star (which names itself). The real cursor stays, so nothing is harder to aim at. Only for
+ * a mouse, and not for visitors who ask for less motion.
+ */
+export function Cursor({ star }: { star: boolean }) {
+  const [on] = useState(
+    () => window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const x = useSpring(-100, { stiffness: 420, damping: 36, mass: 0.5 });
+  const y = useSpring(-100, { stiffness: 420, damping: 36, mass: 0.5 });
+  const [over, setOver] = useState(false);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (!on) return;
+    const move = (e: PointerEvent) => {
+      x.set(e.clientX);
+      y.set(e.clientY);
+      setShown(true);
+      setOver(Boolean((e.target as Element | null)?.closest?.("a, button, [role='tab'], input, textarea, label")));
+    };
+    const leave = () => setShown(false);
+    window.addEventListener("pointermove", move, { passive: true });
+    document.documentElement.addEventListener("pointerleave", leave);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      document.documentElement.removeEventListener("pointerleave", leave);
+    };
+  }, [on, x, y]);
+  if (!on) return null;
+  return (
+    <motion.div
+      className={`cursor${over ? " is-over" : ""}${star ? " is-star" : ""}${shown ? "" : " is-gone"}`}
+      style={{ x, y }}
+      aria-hidden="true"
+    >
+      <span className="cursor-ring" />
+    </motion.div>
+  );
+}

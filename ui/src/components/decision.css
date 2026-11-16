@@ -229,3 +229,38 @@ input:focus {
   min-height: 40px;
   flex: none;
 }
+
+/* The fix has landed. */
+.seal {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+}
+
+.seal svg {
+  position: relative;
+  overflow: visible;
+}
+
+.seal circle {
+  fill: rgb(111 227 200 / 0.12);
+  stroke: var(--aurora);
+  stroke-width: 1.5;
+}
+
+.seal path {
+  fill: none;
+  stroke: var(--aurora);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px var(--aurora));
+}
+
+.seal-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--aurora);
+}

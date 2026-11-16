@@ -28,7 +28,7 @@
   max-width: 22em;
   font-family: var(--display);
   font-size: clamp(2rem, 4.6vw, 4.2rem);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.12;
   letter-spacing: -0.045em;
 }
@@ -653,4 +653,55 @@
   .terminal {
     height: min(72vh, 520px);
   }
+}
+
+/* 1b. The product shot: a real screen, tilted back in space, standing up as it arrives. */
+.story-shot {
+  display: grid;
+  justify-items: center;
+  gap: 28px;
+  padding: 4vh clamp(16px, 5vw, 72px) 16vh;
+}
+
+.shot-stage {
+  width: min(1120px, 100%);
+  perspective: 1400px;
+}
+
+.shot-frame {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--line-strong);
+  background: var(--midnight);
+  transform-origin: 50% 100%;
+  box-shadow:
+    0 0 0 1px rgb(4 7 20 / 0.6),
+    0 50px 120px -30px rgb(0 0 0 / 0.9),
+    0 30px 140px -40px color-mix(in srgb, var(--sodium) 45%, transparent);
+}
+
+.shot-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* A band of light that crosses the glass once, as the screen stands up. */
+.shot-sheen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgb(232 237 255 / 0.07) 45%, rgb(232 237 255 / 0.12) 50%, transparent 60%);
+}
+
+.shot-caption {
+  max-width: 34em;
+  color: var(--haze);
+  font-size: var(--step-1);
+  text-align: center;
+  text-wrap: balance;
 }

@@ -1,7 +1,8 @@
-import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } from "motion/react";
+import { AnimatePresence, motion, useInView, useMotionValueEvent, useScroll, useSpring } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RisingText } from "../components/Bits";
+import { Wordmark } from "../components/Brand";
 import { Magnetic, Parallax, Reveal, RollText, useSmoothScroll } from "../components/Motion";
 import { useMode } from "../lib/api";
 import { LIVE_URL } from "../lib/live";
@@ -9,7 +10,7 @@ import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import { homeScroll } from "../lib/scroll";
 import type { InvestigationSummary, SystemView } from "../lib/types";
-import { FinalCall, Numbers, Problem, Stack, Steps, Team, Terminal } from "./HomeStory";
+import { FinalCall, Numbers, Problem, Shot, Stack, Steps, Team, Terminal } from "./HomeStory";
 import "./home.css";
 
 const FILM = `${import.meta.env.BASE_URL}film/vigil-demo.mp4`;
@@ -34,7 +35,7 @@ const PRINCIPLES = [
 const FOOTER: [string, [string, Route][]][] = [
   ["Watch", [["War room", { page: "watch" }], ["Incidents", { page: "history" }], ["Status", { page: "status" }]]],
   ["Learn", [["How it works", { page: "how" }], ["Results", { page: "scores" }]]],
-  ["Operate", [["Audit log", { page: "audit" }], ["Policy", { page: "policy" }]]],
+  ["Operate", [["Audit log", { page: "audit" }], ["Policy", { page: "policy" }], ["Run it", { page: "run" }]]],
 ];
 
 function liveLine(situation: Situation): string {
@@ -89,13 +90,20 @@ function Film({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** The incident as a line that fills as you scroll; each step lights up when the line reaches it. */
-function Night() {
+/**
+ * The incident as a line that fills as you scroll; each step lights up when the line reaches it.
+ * While the line is on screen the 3D sky replays the same step around the Orders star (see
+ * STORY in App.tsx), so the words and the stars tell the night together.
+ */
+function Night({ onStep }: { onStep: (step: number) => void }) {
   const section = useRef<HTMLOListElement>(null);
   const { scrollYProgress } = useScroll({ target: section, offset: ["start 75%", "end 55%"] });
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
   const [reached, setReached] = useState(-1);
+  const inView = useInView(section, { margin: "-30% 0px -30% 0px" });
   useMotionValueEvent(scrollYProgress, "change", (v) => setReached(Math.floor(v * NIGHT.length - 0.05)));
+  useEffect(() => onStep(inView ? Math.max(0, Math.min(NIGHT.length - 1, reached)) : -1), [inView, reached, onStep]);
+  useEffect(() => () => onStep(-1), [onStep]);
   return (
     <ol className="night" ref={section}>
       <motion.span className="night-line" style={{ scaleY: progress }} aria-hidden="true" />
@@ -114,12 +122,15 @@ export function Home({
   situation,
   list,
   onPastHero,
+  onStory,
 }: {
   situation: Situation;
   system: SystemView | null;
   list: InvestigationSummary[] | null;
   /** Past the first screen the sky steps back, so the stars stop crossing the text. */
   onPastHero: (past: boolean) => void;
+  /** Which step of the night is on screen, or -1: the sky replays it. */
+  onStory: (step: number) => void;
 }) {
   const [film, setFilm] = useState(false);
   const mode = useMode();
@@ -192,11 +203,12 @@ export function Home({
       </section>
 
       <Problem />
+      <Shot />
 
       <section className="home-section">
         <Reveal className="section-title" text="One night, start to finish" />
         <p className="section-lede">A real incident, as it happened.</p>
-        <Night />
+        <Night onStep={onStory} />
         <a className="button" href={href({ page: "watch" })}>
           Watch it happen in the war room
         </a>
@@ -246,7 +258,7 @@ export function Home({
         <div className="footer-top">
           <div className="footer-brand">
             <Parallax distance={60}>
-              <p className="footer-word">Vigil</p>
+              <Wordmark className="footer-word" />
             </Parallax>
             <p>The AI on-call engineer that never sleeps.</p>
           </div>

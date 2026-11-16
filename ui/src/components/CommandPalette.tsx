@@ -28,6 +28,7 @@ const PAGES: [string, Route, string][] = [
   ["Results", { page: "scores" }, "The evaluation"],
   ["Audit log", { page: "audit" }, "Every decision about an action"],
   ["Policy", { page: "policy" }, "What Vigil may do and who approves it"],
+  ["Run it", { page: "run" }, "On your machine or a free codespace"],
 ];
 
 /**

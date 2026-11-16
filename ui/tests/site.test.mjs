@@ -56,6 +56,7 @@ describe("every page", () => {
     ["/status", "Status | Vigil", ".doc-head h1"],
     ["/audit", "Audit log | Vigil", ".doc-head h1"],
     ["/policy", "Policy | Vigil", ".doc-head h1"],
+    ["/run-it", "Run it | Vigil", ".doc-head h1"],
     ["/nowhere", "Lost in space | Vigil", ".lost h1"],
   ];
   for (const [path, title, heading] of pages) {

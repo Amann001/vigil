@@ -13,6 +13,7 @@ import { SERVICES, type Service } from "./types";
  *   /status              each service's health now, for anyone who depends on the shop
  *   /audit               every decision about an action, for whoever answers for them
  *   /policy              what Vigil may do, who approves it and what runs it
+ *   /run-it              three ways to run Vigil, and what it plugs into
  *
  * Pages change without reloading (the 3D sky stays and the camera flies to the new page), so
  * links are plain <a href> elements and a single click handler turns them into navigation.
@@ -28,6 +29,7 @@ export type Route =
   | { page: "status" }
   | { page: "audit" }
   | { page: "policy" }
+  | { page: "run" }
   | { page: "lost" };
 
 // Where the site lives: "" at the root, "/vigil-demo" on GitHub Pages.
@@ -55,6 +57,8 @@ export function parse(pathname: string): Route {
     case "audit":
     case "policy":
       return { page };
+    case "run-it":
+      return { page: "run" };
     default:
       return { page: "lost" };
   }
@@ -82,6 +86,8 @@ export function href(route: Route): string {
       case "audit":
       case "policy":
         return `/${route.page}`;
+      case "run":
+        return "/run-it";
     }
   })();
   return `${BASE}${path}`;

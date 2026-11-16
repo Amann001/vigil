@@ -79,10 +79,12 @@ body:has(.home) {
   box-shadow: none;
 }
 
+/* The headline is the loudest thing on the site: large, tight, and allowed to cross the stars. */
 .hero-title {
-  font-size: clamp(2.8rem, 6.4vw, 6.2rem);
-  line-height: 0.98;
-  letter-spacing: -0.05em;
+  font-size: clamp(3rem, 8.2vw, 8.6rem);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
   text-wrap: balance;
 }
 
@@ -175,7 +177,9 @@ body:has(.home) {
   margin: 26px 0 18px;
   padding: 0 0 0 34px;
   display: grid;
-  gap: 38px;
+  /* Room for the camera: each step stays on screen long enough for the sky to play it. */
+  gap: clamp(56px, 15vh, 150px);
+  max-width: min(32rem, 48vw);
   max-width: 640px;
 }
 
@@ -204,7 +208,7 @@ body:has(.home) {
   position: relative;
   display: grid;
   gap: 4px;
-  opacity: 0.38;
+  opacity: 0.3;
   transition: opacity 0.6s var(--ease-out);
 }
 
@@ -459,6 +463,11 @@ body:has(.home) {
 
   .home-section {
     background: rgb(4 7 20 / 0.82);
+  }
+
+  .night {
+    max-width: none;
+    gap: 48px;
   }
 }
 

@@ -5,6 +5,7 @@ import { now as clockNow } from "../lib/clock";
 import { LIVE_URL } from "../lib/live";
 import { useSound } from "../lib/sound";
 import { OPEN_PALETTE } from "./CommandPalette";
+import { Mark, Wordmark } from "./Brand";
 import { RollText } from "./Motion";
 import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
@@ -23,6 +24,7 @@ const PAGES: { route: Route; label: string; also?: Route["page"][] }[] = [
 const MORE: { route: Route; label: string; hint: string }[] = [
   { route: { page: "audit" }, label: "Audit log", hint: "Every decision about an action" },
   { route: { page: "policy" }, label: "Policy", hint: "What Vigil may do" },
+  { route: { page: "run" }, label: "Run it", hint: "On your machine or a free codespace" },
 ];
 
 function SoundButton() {
@@ -184,8 +186,8 @@ export function WatchBar({
   return (
     <header className="watchbar">
       <a className="brand" href={href({ page: "home" })} aria-label="Vigil, home">
-        <span className={`brand-eye eye-${situation.kind}`} aria-hidden="true" />
-        <span className="brand-word">Vigil</span>
+        <Mark className="brand-mark" />
+        <Wordmark className="brand-word" />
       </a>
       <nav className="pages" aria-label="Pages">
         {PAGES.map(({ route: target, label, also }) => {

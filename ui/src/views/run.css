@@ -1,0 +1,97 @@
+/* Three ways in, side by side, from the lightest to the deepest. */
+.ways {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.ways li {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 10px;
+  padding: 22px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line);
+  background: rgb(4 7 20 / 0.4);
+}
+
+.ways li:nth-child(2) {
+  border-color: color-mix(in srgb, var(--sodium) 40%, transparent);
+}
+
+.way-when {
+  color: var(--sodium);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.ways h2 {
+  font-size: var(--step-2);
+}
+
+.ways p {
+  color: var(--haze);
+}
+
+.ways .button {
+  margin-top: 6px;
+}
+
+.run-code {
+  margin: 0;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 12px 14px;
+  border-radius: var(--radius-s);
+  background: rgb(0 0 0 / 0.35);
+  border: 1px solid var(--line);
+  font-family: var(--code);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #c9d1f0;
+}
+
+.fits {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  background: var(--line);
+}
+
+.fits div {
+  padding: 16px 18px;
+  background: rgb(10 16 40 / 0.9);
+}
+
+.fits dt {
+  color: var(--dim);
+  font-size: var(--step--1);
+}
+
+.fits dd {
+  margin: 4px 0 0;
+}
+
+.fits a {
+  color: var(--starlight);
+}
+
+.run-honest {
+  max-width: 44em;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 860px) {
+  .ways,
+  .fits {
+    grid-template-columns: 1fr;
+  }
+}

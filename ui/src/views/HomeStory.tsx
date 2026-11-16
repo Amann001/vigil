@@ -16,7 +16,7 @@ import { diagnosisOf } from "../lib/state";
 import { PARTS, STAGES } from "../lib/team";
 import type { Investigation, InvestigationSummary } from "../lib/types";
 import { agentName, proposalName, serviceName, toolName } from "../lib/words";
-import { Reveal } from "../components/Motion";
+import { Reveal, RollText } from "../components/Motion";
 import "./story.css";
 
 /*
@@ -58,6 +58,39 @@ export function Problem() {
         </p>
       </div>
       <p className="problem-answer">Vigil does the search. You make the call.</p>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// 1b. The product itself: a real screenshot of the incident page, lying back in space, that
+//     stands up to face the visitor as it scrolls into view (scripts/capture-shot.mjs makes it).
+
+const SHOT = `${import.meta.env.BASE_URL}shots/incident.webp`;
+
+export function Shot() {
+  const ref = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "center center"] });
+  const p = useSpring(scrollYProgress, { stiffness: 90, damping: 24 });
+  const rotateX = useTransform(p, [0, 1], reduce ? [0, 0] : [38, 0]);
+  const scale = useTransform(p, [0, 1], reduce ? [1, 1] : [0.82, 1]);
+  const sheen = useTransform(p, [0, 1], ["-60%", "140%"]);
+  return (
+    <section className="chapter story-shot" aria-label="The screen you decide on">
+      <div ref={ref} className="shot-stage">
+        <motion.figure className="shot-frame" style={{ rotateX, scale }}>
+          <img
+            src={SHOT}
+            width={1920}
+            height={1200}
+            loading="lazy"
+            alt="Vigil's incident page: Orders is leaking memory, the signals that moved, and the decision to restart it."
+          />
+          <motion.span className="shot-sheen" style={{ left: sheen }} aria-hidden="true" />
+        </motion.figure>
+      </div>
+      <p className="shot-caption">The cause, the evidence, and one button. That is the whole job at 3 a.m.</p>
     </section>
   );
 }
@@ -512,10 +545,10 @@ export function FinalCall() {
           animate={pull}
           transition={{ type: "spring", stiffness: 260, damping: 18 }}
         >
-          Enter the war room
+          <RollText>Enter the war room</RollText>
         </motion.a>
-        <a className="button button-ghost button-large" href={href({ page: "status" })}>
-          See what is running
+        <a className="button button-ghost button-large" href={href({ page: "run" })}>
+          <RollText>Run it yourself</RollText>
         </a>
       </div>
     </section>
