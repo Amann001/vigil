@@ -477,6 +477,10 @@ function Recovery({ investigation, system }: { investigation: Investigation; sys
   const [subject, metric] = signal.feature.split(".");
   const view = services[subject as Service];
   const now = view.latest[metric as keyof typeof view.latest] as number;
+  // Green only once the signal is really back towards normal: just after a restart the newest
+  // reading can still be from before it took effect, and must not look like a recovery.
+  const usual = signal.usual ?? now;
+  const better = Math.abs(now - usual) < Math.abs((signal.value as number) - usual);
   return (
     <section className="recovery" aria-label="Then and now">
       <h2>Then and now</h2>
@@ -489,10 +493,10 @@ function Recovery({ investigation, system }: { investigation: Investigation; sys
         <span className="recovery-arrow" aria-hidden="true" />
         <span>
           <small>Now</small>
-          <b className="num tone-now">{formatValue(signal.feature, now)}</b>
+          <b className={`num ${better ? "tone-now" : "tone-then"}`}>{formatValue(signal.feature, now)}</b>
         </span>
       </div>
-      <Sparkline values={view.series[metric] ?? []} tone="aurora" width={320} height={52} />
+      <Sparkline values={view.series[metric] ?? []} tone={better ? "aurora" : "sodium"} width={320} height={52} />
       <p className="recovery-note">
         Usually {formatValue(signal.feature, signal.usual)}. The line is the last ten minutes.
       </p>

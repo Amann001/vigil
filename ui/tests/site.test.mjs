@@ -153,6 +153,14 @@ describe("the replay", () => {
     await page.click(".decision-send");
     await page.waitForSelector(".recovery", { visible: true, timeout: 60000 });
     assert.match(await text(page, ".recovery"), /419 MB/);
+    // "Now" is green only when it is really lower: just after the restart the newest reading can
+    // still be from before it took effect (the leak at 619 MB), and once looked like a recovery.
+    const [then, now, green] = await page.$$eval(".recovery-values b", ([a, b]) => [
+      parseFloat(a.textContent),
+      parseFloat(b.textContent),
+      b.classList.contains("tone-now"),
+    ]);
+    assert.equal(green, now < then, `now ${now} vs then ${then}`);
     assert.deepEqual(errors, []);
     await page.close();
   });
