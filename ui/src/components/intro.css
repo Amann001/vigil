@@ -34,3 +34,9 @@
   font-size: var(--step--1);
   color: var(--dim);
 }
+
+/* Each letter rises out of a clipping mask, which would cut a dot's glow into a column; the
+   whole word's own glow lights the dots instead. */
+.intro-word .wm-i i {
+  box-shadow: none;
+}

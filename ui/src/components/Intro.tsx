@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
+import "./brand.css";
 import "./intro.css";
 
 const SEEN_KEY = "vigil.intro";
@@ -58,7 +59,18 @@ export function Intro({ onDone }: { onDone: () => void }) {
               animate={{ y: "0%" }}
               transition={{ delay: 0.25 + i * 0.07, duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
             >
-              {letter}
+              {letter === "i" ? (
+                <span className="wm-i">
+                  ı
+                  <motion.i
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 1.05 + i * 0.08, duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
+                  />
+                </span>
+              ) : (
+                letter
+              )}
             </motion.span>
           </span>
         ))}
