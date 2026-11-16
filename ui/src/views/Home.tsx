@@ -189,7 +189,7 @@ export function Home({
           </Magnetic>
         </motion.div>
         <p className="hero-hint">
-          Each star is a service. Click one.
+          Each star is a service. Click one. Sound on, top right, for the full story.
           {LIVE_URL && mode === "demo" && (
             <>
               {" "}

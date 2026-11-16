@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { api, ApiError, getToken } from "../lib/api";
+import { sounds } from "../lib/sound";
 import { diagnosisOf } from "../lib/state";
 import { SERVICES, type Investigation, type Service } from "../lib/types";
 import { headline, outcomeName, proposalName, serviceName } from "../lib/words";
@@ -55,6 +56,7 @@ export function Decision({ investigation, mode }: { investigation: Investigation
   const ready = verdict !== null && (verdict === "confirmed" || notes.trim().length > 0) && hasToken;
 
   async function send() {
+    sounds.confirm();
     setState({ kind: "sending" });
     try {
       await api.review(investigation.id, {

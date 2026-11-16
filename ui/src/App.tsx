@@ -7,7 +7,7 @@ import { ErrorBoundary, hasWebGL, loadOnce } from "./components/Safety";
 import { WatchBar } from "./components/WatchBar";
 import { api, useMode, usePoll } from "./lib/api";
 import { useDecisionNotifications } from "./lib/notify";
-import { useSoundCues } from "./lib/sound";
+import { useSoundCues, useStoryCues } from "./lib/sound";
 import { go, href, type Route, useRoute } from "./lib/route";
 import { serviceOf, situation } from "./lib/state";
 import type { Service } from "./lib/types";
@@ -111,6 +111,7 @@ export function App() {
 
   const pageKey = route.page === "incident" ? `incident/${route.id}` : route.page === "service" ? `service/${route.service}` : route.page;
   useSoundCues(now.kind, pageKey);
+  useStoryCues(route.page === "home" ? storyStep : -1);
   useDecisionNotifications(now.pending, mode === "live");
 
   const incidentService = route.page === "incident" ? serviceOf(openInvestigation) : null;

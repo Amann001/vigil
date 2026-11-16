@@ -11,6 +11,8 @@ import { useEffect, useRef, useState } from "react";
  *   decide   a fix is waiting for a person: one soft bell
  *   fixed    the fix landed: a rising chord
  *   move     a page change: a short breath of filtered noise, with the camera's warp
+ *   agents   the agents set off: three soft plucks, one for each specialist
+ *   confirm  a person's decision is sent: one short, low, warm note
  */
 
 const listeners = new Set<(on: boolean) => void>();
@@ -111,6 +113,15 @@ export const sounds = {
     if (!enabled) return;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, i * 0.09, 1.3 - i * 0.15, { gain: 0.14 }));
   },
+  agents() {
+    if (!enabled) return;
+    [587.33, 739.99, 880].forEach((f, i) => note(f, i * 0.11, 0.45, { type: "triangle", gain: 0.1 }));
+  },
+  confirm() {
+    if (!enabled) return;
+    note(392, 0, 0.5, { type: "triangle", gain: 0.2 });
+    note(587.33, 0.06, 0.7, { gain: 0.1 });
+  },
   move() {
     const a = enabled ? audio() : null;
     if (!a) return;
@@ -154,6 +165,24 @@ export function useSound(): [boolean, (on: boolean) => void] {
     return () => void listeners.delete(setOn);
   }, []);
   return [on, setSound];
+}
+
+/**
+ * The home page's night, heard: the camera's dive as the story starts, then the same cues the
+ * war room plays for a real incident, each once, as the visitor scrolls forward through it.
+ */
+export function useStoryCues(step: number) {
+  const last = useRef(-1);
+  useEffect(() => {
+    const before = last.current;
+    last.current = step;
+    if (step <= before) return;
+    if (before === -1 && step >= 0) sounds.move();
+    if (step === 1) sounds.alarm();
+    else if (step === 2) sounds.agents();
+    else if (step === 4) sounds.decide();
+    else if (step === 5) sounds.fixed();
+  }, [step]);
 }
 
 /** Plays the cue for each change in what the war room is about (not for the first state). */
