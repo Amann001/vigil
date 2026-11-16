@@ -1,0 +1,91 @@
+/* A label that rolls up to a copy of itself when its link or button is hovered. */
+.roll {
+  position: relative;
+  display: inline-grid;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.roll-a,
+.roll-b {
+  grid-area: 1 / 1;
+  transition: transform 0.55s var(--ease-out);
+}
+
+.roll-b {
+  transform: translateY(105%);
+}
+
+:is(a, button):hover > .roll .roll-a,
+:is(a, button):hover .nav-label > .roll .roll-a,
+:is(a, button):focus-visible .roll .roll-a {
+  transform: translateY(-105%);
+}
+
+:is(a, button):hover > .roll .roll-b,
+:is(a, button):hover .nav-label > .roll .roll-b,
+:is(a, button):focus-visible .roll .roll-b {
+  transform: translateY(0);
+}
+
+/* Words that rise into view. */
+.reveal-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
+
+.reveal-word {
+  display: inline-block;
+}
+
+.magnetic {
+  display: inline-block;
+}
+
+/* Film grain over the whole site: a faint texture that keeps large dark areas from looking flat. */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: 500;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain 1.2s steps(6) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4%, 3%); }
+  40% { transform: translate(3%, -5%); }
+  60% { transform: translate(-5%, -2%); }
+  80% { transform: translate(4%, 4%); }
+  100% { transform: translate(0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roll-a,
+  .roll-b {
+    transition: none;
+  }
+
+  .grain {
+    animation: none;
+  }
+}
+
+/* Lenis' own rules for the page it smooths. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}

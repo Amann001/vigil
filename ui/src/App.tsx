@@ -114,6 +114,7 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion="user">
+      <div className="grain" aria-hidden="true" />
       <div className={`sky sky-${focus?.tone ?? (now.kind === "offline" ? "offline" : "calm")}`} />
       {WEBGL && (
       <ErrorBoundary>

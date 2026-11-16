@@ -16,6 +16,7 @@ import { diagnosisOf } from "../lib/state";
 import { PARTS, STAGES } from "../lib/team";
 import type { Investigation, InvestigationSummary } from "../lib/types";
 import { agentName, proposalName, serviceName, toolName } from "../lib/words";
+import { Reveal } from "../components/Motion";
 import "./story.css";
 
 /*
@@ -30,7 +31,7 @@ import "./story.css";
 // 1. The problem: a statement whose words light up as it scrolls past.
 
 const PROBLEM =
-  "Three in the morning. A service slows down, then another. Someone is paged, opens six dashboards, reads ten thousand log lines and hunts for the change that caused it. Every minute of that search is downtime.";
+  "3 a.m. Something breaks. Someone is paged, opens six dashboards and starts searching. Every minute is downtime.";
 
 function Word({ word, range, progress }: { word: string; range: [number, number]; progress: MotionValue<number> }) {
   const opacity = useTransform(progress, range, [0.14, 1]);
@@ -56,7 +57,7 @@ export function Problem() {
           ))}
         </p>
       </div>
-      <p className="problem-answer">Vigil does that search for you, in about a minute and a half, and waits for your yes before it fixes anything.</p>
+      <p className="problem-answer">Vigil does the search. You make the call.</p>
     </section>
   );
 }
@@ -156,7 +157,7 @@ export function Team() {
   if (reduce) {
     return (
       <section className="chapter" aria-label="The team">
-        <h2 className="section-title">Eleven parts. One job each.</h2>
+        <Reveal className="section-title" text="Eleven parts. One job each." />
         <ol className="deck-list">
           {ORDER.map(({ id }, i) => (
             <li key={id}>
@@ -172,7 +173,7 @@ export function Team() {
     <section ref={ref} className="story-team" aria-label="The team">
       <div className="team-pin">
         <header className="team-head">
-          <h2 className="section-title">Eleven parts. One job each.</h2>
+          <Reveal className="section-title" text="Eleven parts. One job each." />
           <p className="section-lede">Scroll to deal the deck.</p>
         </header>
         <div className="deck" aria-live="polite">
@@ -269,9 +270,9 @@ function TerminalPlayer({ inv, lines }: { inv: Investigation; lines: Line[] }) {
     <section ref={ref} className="story-terminal" aria-label="Inside an investigation">
       <div className="terminal-pin">
         <header>
-          <h2 className="section-title">Inside an investigation</h2>
+          <Reveal className="section-title" text="Inside an investigation" />
           <p className="section-lede">
-            The questions and tool calls from the last real incident, as the agents made them. Scroll to play it.
+            The last real incident, call by call. Scroll to play.
           </p>
           <ul className="terminal-facts">
             <li>
@@ -322,22 +323,22 @@ function TerminalPlayer({ inv, lines }: { inv: Investigation; lines: Line[] }) {
 const STEPS = [
   {
     title: "Notice",
-    text: "A model that knows what normal looks like spots readings that are not.",
+    text: "Spots what isn't normal.",
     icon: "M3 12h4l2-6 4 12 2-6h6",
   },
   {
     title: "Investigate",
-    text: "AI agents read the logs, the metrics and what changed, all at once.",
+    text: "Agents find the cause.",
     icon: "M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zM15.5 15.5 21 21",
   },
   {
     title: "Decide",
-    text: "You see the cause and the evidence, and say yes or no to the fix.",
+    text: "You approve the fix.",
     icon: "M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM4 21c1.5-4 4.5-6 8-6s6.5 2 8 6",
   },
   {
     title: "Fix",
-    text: "Safe, checked code applies it, and the report writes itself.",
+    text: "Applied safely, and logged.",
     icon: "M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM8.5 12l2.5 2.5 4.5-5",
   },
 ];
@@ -368,8 +369,8 @@ export function Steps() {
   const fill = useTransform(progress, [0, 1], ["0%", "100%"]);
   return (
     <section className="chapter chapter-steps" aria-label="How it works, in four steps">
-      <h2 className="section-title">Four steps, every time</h2>
-      <p className="section-lede">From the first strange reading to the fix, in about two minutes and one click.</p>
+      <Reveal className="section-title" text="Four steps, every time" />
+      <p className="section-lede">About two minutes and one click.</p>
       <ol ref={ref} className="steps">
         <span className="steps-line" aria-hidden="true">
           <motion.i style={{ width: fill }} />
@@ -389,12 +390,12 @@ export function Steps() {
 // 5. The numbers, counting up as they arrive.
 
 const NUMBERS = [
-  { to: 12, of: 12, label: "incidents detected on the public set, with no false alarms" },
-  { to: 11, of: 12, label: "root cause, kind and fix all right, on scenarios it was built on" },
-  { to: 5, of: 5, label: "right on scenarios someone else wrote, never seen while building" },
-  { to: 11, of: 11, label: "times the right runbook was the first one memory found" },
-  { to: 13, unit: "s", label: "for a second worker to finish an investigation whose worker was killed" },
-  { to: 0, prefix: "$", label: "to run: free tiers only, under 5 GB of disk" },
+  { to: 12, of: 12, label: "incidents detected, no false alarms" },
+  { to: 11, of: 12, label: "diagnosed and fixed right" },
+  { to: 5, of: 5, label: "right on a hidden test written by someone else" },
+  { to: 11, of: 11, label: "right runbook found first" },
+  { to: 13, unit: "s", label: "to recover from a crashed worker" },
+  { to: 0, prefix: "$", label: "to run" },
 ];
 
 function Count({ to, of, unit, prefix }: { to: number; of?: number; unit?: string; prefix?: string }) {
@@ -419,7 +420,7 @@ function Count({ to, of, unit, prefix }: { to: number; of?: number; unit?: strin
 export function Numbers() {
   return (
     <section className="chapter story-numbers" aria-label="Measured results">
-      <h2 className="section-title">Measured, not promised</h2>
+      <Reveal className="section-title" text="Measured, not promised" />
       <dl className="numbers">
         {NUMBERS.map((n, i) => (
           <motion.div
@@ -492,15 +493,7 @@ export function FinalCall() {
   const [pull, setPull] = useState({ x: 0, y: 0 });
   return (
     <section className="chapter story-final" aria-label="Start">
-      <motion.h2
-        className="final-title"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-      >
-        The shop is being watched right now.
-      </motion.h2>
+      <Reveal className="final-title" text="The shop is being watched right now." />
       <div
         className="final-actions"
         onPointerMove={(e) => {

@@ -5,6 +5,7 @@ import { now as clockNow } from "../lib/clock";
 import { LIVE_URL } from "../lib/live";
 import { useSound } from "../lib/sound";
 import { OPEN_PALETTE } from "./CommandPalette";
+import { RollText } from "./Motion";
 import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import type { SystemView } from "../lib/types";
@@ -193,7 +194,9 @@ export function WatchBar({
             <a key={label} href={href(target)} aria-current={current ? "page" : undefined}>
               {/* One pill that slides to the current page. */}
               {current && <motion.span layoutId="nav-pill" className="nav-pill" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
-              <span className="nav-label">{label}</span>
+              <span className="nav-label">
+                <RollText>{label}</RollText>
+              </span>
               {target.page === "history" && waiting > 0 && <span className="badge num">{waiting}</span>}
             </a>
           );

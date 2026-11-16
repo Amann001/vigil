@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } fr
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RisingText } from "../components/Bits";
+import { Magnetic, Parallax, Reveal, RollText, useSmoothScroll } from "../components/Motion";
 import { useMode } from "../lib/api";
 import { LIVE_URL } from "../lib/live";
 import { href, type Route } from "../lib/route";
@@ -15,19 +16,19 @@ const FILM = `${import.meta.env.BASE_URL}film/vigil-demo.mp4`;
 
 /** One real incident, as it happened on Vigil's demo shop. */
 const NIGHT = [
-  { at: "The fault", title: "Orders starts leaking memory", text: "Nobody tells Vigil. Nothing in the logs names the fault: there are only the symptoms a real leak would cause." },
-  { at: "38 s later", title: "The detector notices", text: "A model that learned what normal looks like sees 40 signals drifting together and raises the alarm. No threshold was set by hand." },
-  { at: "At once", title: "A team investigates", text: "A supervisor splits the problem into questions. Specialists read the logs, the metrics and the recent changes, side by side." },
-  { at: "102 s later", title: "A diagnosis, with evidence", text: "Orders is leaking memory, with high confidence. Memory recalls the runbook and an earlier incident of the same kind." },
-  { at: "Then", title: "It waits for a person", text: "The proposed fix is a restart. Nothing changes until someone confirms the diagnosis and approves it." },
-  { at: "After the yes", title: "Fixed, and remembered", text: "Orders restarts and its memory falls from 419 MB to 65 MB. The incident report is written and kept for next time." },
+  { at: "The fault", title: "Orders starts leaking memory", text: "Nobody tells Vigil." },
+  { at: "38 s later", title: "The detector notices", text: "40 signals drift from normal. The alarm goes off." },
+  { at: "At once", title: "A team investigates", text: "Specialists read logs, metrics and changes in parallel." },
+  { at: "102 s later", title: "A diagnosis, with evidence", text: "Orders is leaking memory. High confidence." },
+  { at: "Then", title: "It waits for a person", text: "Restart proposed. Nothing happens without a yes." },
+  { at: "After the yes", title: "Fixed, and remembered", text: "Memory 419 MB → 65 MB. Report written." },
 ];
 
 const PRINCIPLES = [
-  { title: "Read freely, write with permission", text: "Agents can look at anything. Every action that changes the system needs a person's approval." },
-  { title: "Durable by default", text: "Every step is checkpointed. Kill a worker mid-investigation and another finishes it." },
-  { title: "Measured, not assumed", text: "Tested on scenarios someone else wrote, and on public benchmarks, with the misses published." },
-  { title: "Runs on free tiers", text: "Gemini, Groq, Neon and Langfuse free plans, and under 5 GB of disk." },
+  { title: "Read freely, write with permission", text: "Agents read anything. Changes need a person." },
+  { title: "Durable by default", text: "A crashed worker's job carries on from its checkpoint." },
+  { title: "Measured, not assumed", text: "Tested on scenarios someone else wrote." },
+  { title: "Runs on free tiers", text: "Free tiers only. Under 5 GB." },
 ];
 
 const FOOTER: [string, [string, Route][]][] = [
@@ -122,6 +123,7 @@ export function Home({
 }) {
   const [film, setFilm] = useState(false);
   const mode = useMode();
+  useSmoothScroll(true);
   const { scrollY, scrollYProgress } = useScroll();
   useMotionValueEvent(scrollY, "change", (y) => onPastHero(y > window.innerHeight * 0.55));
   // The sky turns and the camera rises as the story goes on (read by the 3D scene each frame).
@@ -155,8 +157,7 @@ export function Home({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
-          Vigil watches a running system, notices trouble with machine learning, sends a team of AI agents to find the
-          cause, and fixes it once a person says yes.
+          Finds what broke, explains why, and fixes it when you say yes.
         </motion.p>
         <motion.div
           className="hero-actions"
@@ -164,16 +165,20 @@ export function Home({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
-          <a className="button button-primary button-large" href={href({ page: "watch" })}>
-            Enter the war room
-          </a>
-          <button className="button button-ghost button-large" onClick={() => setFilm(true)}>
-            <span className="play" aria-hidden="true" />
-            Play the film, 2 min
-          </button>
+          <Magnetic>
+            <a className="button button-primary button-large" href={href({ page: "watch" })}>
+              <RollText>Enter the war room</RollText>
+            </a>
+          </Magnetic>
+          <Magnetic>
+            <button className="button button-ghost button-large" onClick={() => setFilm(true)}>
+              <span className="play" aria-hidden="true" />
+              <RollText>Play the film, 2 min</RollText>
+            </button>
+          </Magnetic>
         </motion.div>
         <p className="hero-hint">
-          Every star on the right is a service of the shop. Click one.
+          Each star is a service. Click one.
           {LIVE_URL && mode === "demo" && (
             <>
               {" "}
@@ -189,8 +194,8 @@ export function Home({
       <Problem />
 
       <section className="home-section">
-        <h2 className="section-title">One night, start to finish</h2>
-        <p className="section-lede">A real incident on Vigil's demo shop, minute by minute.</p>
+        <Reveal className="section-title" text="One night, start to finish" />
+        <p className="section-lede">A real incident, as it happened.</p>
         <Night />
         <a className="button" href={href({ page: "watch" })}>
           Watch it happen in the war room
@@ -203,7 +208,7 @@ export function Home({
       <Numbers />
 
       <section className="home-section">
-        <h2 className="section-title">Built like it runs in production</h2>
+        <Reveal className="section-title" text="Built like it runs in production" />
         <ul className="principles">
           {PRINCIPLES.map((p) => (
             <li key={p.title}>
@@ -215,12 +220,13 @@ export function Home({
       </section>
 
       <section className="home-section home-proof">
-        <p className="proof-number num">5/5</p>
+        <Parallax distance={120}>
+          <p className="proof-number num">5/5</p>
+        </Parallax>
         <div>
-          <h2 className="section-title">Five incidents nobody tuned it for. Five right.</h2>
+          <Reveal className="section-title" text="Five incidents nobody tuned it for. Five right." />
           <p className="section-lede">
-            Someone else wrote the test scenarios. Vigil found the cause and the right fix every time, and raised no false
-            alarms.
+            Scenarios written by someone else. Right cause, right fix, no false alarms.
           </p>
           <div className="proof-links">
             <a className="button" href={href({ page: "scores" })}>
@@ -239,8 +245,10 @@ export function Home({
       <footer className="home-footer">
         <div className="footer-top">
           <div className="footer-brand">
-            <p className="footer-word">Vigil</p>
-            <p>The AI on-call engineer that never sleeps. Detects with machine learning, investigates with a team of agents, and fixes only with a person's approval.</p>
+            <Parallax distance={60}>
+              <p className="footer-word">Vigil</p>
+            </Parallax>
+            <p>The AI on-call engineer that never sleeps.</p>
           </div>
           <nav className="footer-links" aria-label="Site">
             {FOOTER.map(([title, links]) => (
@@ -265,7 +273,7 @@ export function Home({
           </nav>
         </div>
         <p className="footer-base">
-          Runs on free tiers: Gemini, Groq, Neon Postgres and Langfuse. Press <kbd>Ctrl K</kbd> anywhere to jump to a page.
+          Built on free tiers. Press <kbd>Ctrl K</kbd> to jump anywhere.
         </p>
       </footer>
 
