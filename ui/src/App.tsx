@@ -13,23 +13,25 @@ import { serviceOf, situation } from "./lib/state";
 import type { Service } from "./lib/types";
 import { serviceName } from "./lib/words";
 import type { View } from "./scene/Constellation";
-import { Audit } from "./views/Audit";
-import { History } from "./views/History";
 import { Home } from "./views/Home";
-import { HowItWorks } from "./views/HowItWorks";
-import { Incident } from "./views/Incident";
-import { Lost } from "./views/Lost";
-import { Policy } from "./views/Policy";
-import { Run } from "./views/Run";
-import { Scores } from "./views/Scores";
-import { ServicePage } from "./views/ServicePage";
-import { Status } from "./views/Status";
 import { Watch } from "./views/Watch";
 import "./styles/app.css";
 
 const Constellation = lazy(
   loadOnce(() => import("./scene/Constellation").then((m) => ({ default: m.Constellation }))),
 );
+// The home page and the war room come with the first download; the other pages load when first
+// opened, so a first visit fetches less before anything is on screen.
+const Audit = lazy(loadOnce(() => import("./views/Audit").then((m) => ({ default: m.Audit }))));
+const History = lazy(loadOnce(() => import("./views/History").then((m) => ({ default: m.History }))));
+const HowItWorks = lazy(loadOnce(() => import("./views/HowItWorks").then((m) => ({ default: m.HowItWorks }))));
+const Incident = lazy(loadOnce(() => import("./views/Incident").then((m) => ({ default: m.Incident }))));
+const Lost = lazy(loadOnce(() => import("./views/Lost").then((m) => ({ default: m.Lost }))));
+const Policy = lazy(loadOnce(() => import("./views/Policy").then((m) => ({ default: m.Policy }))));
+const Scores = lazy(loadOnce(() => import("./views/Scores").then((m) => ({ default: m.Scores }))));
+const ServicePage = lazy(loadOnce(() => import("./views/ServicePage").then((m) => ({ default: m.ServicePage }))));
+const Status = lazy(loadOnce(() => import("./views/Status").then((m) => ({ default: m.Status }))));
+const Run = lazy(loadOnce(() => import("./views/Run").then((m) => ({ default: m.Run }))));
 // Checked once: without 3D graphics the site runs on the plain night sky, with every page working.
 const WEBGL = hasWebGL();
 
@@ -97,6 +99,14 @@ export function App() {
     1500,
     `${open}-${mode}`,
   ).data;
+
+  useEffect(() => {
+    const later = window.setTimeout(() => {
+      for (const page of ["Audit", "History", "HowItWorks", "Incident", "Policy", "Run", "Scores", "ServicePage", "Status"])
+        import(`./views/${page}.tsx`).catch(() => {});
+    }, 4000);
+    return () => window.clearTimeout(later);
+  }, []);
 
   // The logo and a few accents take the colour of the shop's state (see brand.css).
   useEffect(() => {
@@ -176,6 +186,7 @@ export function App() {
       <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
       <WatchBar route={route} system={system} mode={mode} situation={now} />
       <CommandPalette list={list} mode={mode} />
+      <Suspense fallback={null}>
       <AnimatePresence mode="wait">
         {!intro && route.page === "home" && <Home key="home" situation={now} system={system} list={list} onPastHero={setPastHero} onStory={setStoryStep} />}
         {!intro && route.page === "watch" && (
@@ -210,6 +221,7 @@ export function App() {
         {route.page === "run" && <Run key="run" />}
         {route.page === "lost" && <Lost key="lost" />}
       </AnimatePresence>
+      </Suspense>
     </MotionConfig>
   );
 }
