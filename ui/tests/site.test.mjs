@@ -178,15 +178,19 @@ describe("the replay", () => {
 });
 
 describe("the home page", () => {
-  test("the deck turns as the page scrolls", async () => {
+  test("the stage cards stack as the page scrolls", async () => {
     const { page } = await open("/");
-    const front = () => page.$eval(".deck-card.is-front h3", (e) => e.textContent);
-    const deck = await page.$eval(".story-team", (e) => [e.getBoundingClientRect().top + scrollY, e.offsetHeight - innerHeight]);
-    await page.evaluate((y) => window.scrollTo(0, y), deck[0] + 5);
-    await page.waitForSelector(".deck-card.is-front");
-    const first = await front();
-    await page.evaluate((y) => window.scrollTo(0, y), deck[0] + deck[1] * 0.85);
-    await page.waitForFunction((was) => document.querySelector(".deck-card.is-front h3")?.textContent !== was, {}, first);
+    const cards = await page.$$eval(".stack-card", (els) => els.length);
+    assert.equal(cards, 4);
+    const scaleOfFirst = () =>
+      page.$eval(".stack-card", (e) => new DOMMatrix(getComputedStyle(e).transform).a);
+    const [top, height] = await page.$eval(".stack", (e) => [e.getBoundingClientRect().top + scrollY, e.offsetHeight]);
+    await page.evaluate((y) => window.scrollTo(0, y), top + 5);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.ok((await scaleOfFirst()) > 0.98, "the first card is full size when it arrives");
+    // By the last stage the cards above have come down over it, and it has stepped back.
+    await page.evaluate((y) => window.scrollTo(0, y), top + height - 900);
+    await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector(".stack-card")).transform).a < 0.9);
     await page.close();
   });
 
