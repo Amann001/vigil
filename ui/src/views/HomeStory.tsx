@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { href } from "../lib/route";
 import { diagnosisOf } from "../lib/state";
+import { PARTS, STAGES } from "../lib/team";
 import type { Investigation, InvestigationSummary } from "../lib/types";
 import { agentName, proposalName, serviceName, toolName } from "../lib/words";
 import { Reveal, RollText } from "../components/Motion";
@@ -90,6 +91,142 @@ export function Shot() {
         </motion.figure>
       </div>
       <p className="shot-caption">The cause, the evidence, and one button. That is the whole job at 3 a.m.</p>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// 2. The team as a deck of cards: stacked at first, then dealt across the whole width of the page
+//    on a wide, shallow arc that turns with the scroll, so each part comes to the front in turn.
+
+const ORDER = STAGES.flatMap((stage) => stage.parts.map((id) => ({ id, stage: stage.title })));
+const CARDS = ORDER.length;
+const STEP = 21; // degrees between neighbouring cards on the arc
+const SPREAD_UNTIL = 0.16; // share of the section spent dealing the deck out
+const TURN_UNTIL = 0.94; // the last card reaches the front here, and the arc rests
+
+const clamp = (v: number) => Math.min(1, Math.max(0, v));
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+/** Where card i sits at scroll progress p: its angle on the arc (0 is the front, in the middle
+ *  of the page) and how far the deck has been dealt. */
+function pose(i: number, p: number) {
+  const spread = ease(clamp(p / SPREAD_UNTIL));
+  const turn = clamp((p - SPREAD_UNTIL) / (TURN_UNTIL - SPREAD_UNTIL)) * STEP * (CARDS - 1);
+  return { angle: i * STEP * spread - turn, spread };
+}
+
+function frontCard(p: number): number {
+  return Math.round(clamp((p - SPREAD_UNTIL) / (TURN_UNTIL - SPREAD_UNTIL)) * (CARDS - 1));
+}
+
+/** The arc: as wide as the page, so the cards run from edge to edge, and shallow, so the ones
+ *  at the sides lean back without shrinking away to nothing. */
+interface Arc {
+  wide: number;
+  deep: number;
+}
+
+function arcFor(width: number): Arc {
+  // On a phone the arc is wider than the screen: the front card shows whole and its neighbours
+  // peek in from the edges, instead of all eleven crowding into 390 pixels.
+  const wide = width * (width < 700 ? 1.5 : width < 1300 ? 0.63 : 0.56);
+  return { wide, deep: wide * 0.55 };
+}
+
+function DeckCard({ index, progress, arc, front }: { index: number; progress: MotionValue<number>; arc: Arc; front: boolean }) {
+  const { id, stage } = ORDER[index];
+  const part = PARTS[id];
+  const transform = useTransform(progress, (p) => {
+    const { angle, spread } = pose(index, p);
+    const rad = (angle * Math.PI) / 180;
+    const x = arc.wide * Math.sin(rad);
+    const z = arc.deep * (Math.cos(rad) - 1);
+    // While stacked, each card sits a little higher and askew, like a squared-up deck in a hand.
+    const tilt = (1 - spread) * (index - (CARDS - 1) / 2) * 1.8;
+    const lift = (1 - spread) * -index * 2.5;
+    return `translate3d(${x}px, ${lift}px, ${z}px) rotateY(${angle * 0.75}deg) rotateZ(${tilt}deg)`;
+  });
+  const opacity = useTransform(progress, (p) => {
+    const { angle, spread } = pose(index, p);
+    if (spread < 0.05) return 1;
+    // Full strength across the page, fading as a card turns past the edge.
+    return clamp(1 - (Math.abs(angle) - 70) / 40) * (0.55 + 0.45 * Math.cos((Math.min(Math.abs(angle), 90) * Math.PI) / 180));
+  });
+  const zIndex = useTransform(progress, (p) => {
+    const { angle } = pose(index, p);
+    return Math.round((200 - Math.abs(angle)) * 10) + (CARDS - index);
+  });
+  return (
+    <motion.article
+      className={`deck-card kind-${part.kind}${front ? " is-front" : ""}`}
+      style={{ transform, opacity, zIndex }}
+      aria-hidden={!front}
+    >
+      <span className="deck-index num">{String(index + 1).padStart(2, "0")}</span>
+      <span className={`deck-glow agent-dot agent-${part.role ?? id}`} aria-hidden="true" />
+      <span className="deck-stage">{stage}</span>
+      <h3>{part.name}</h3>
+      <p>{part.short}</p>
+    </motion.article>
+  );
+}
+
+export function Team() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 24, mass: 0.6 });
+  const [front, setFront] = useState(0);
+  useMotionValueEvent(progress, "change", (p) => setFront(frontCard(p)));
+  const [arc, setArc] = useState<Arc>(() => arcFor(window.innerWidth));
+  useEffect(() => {
+    const measure = () => setArc(arcFor(window.innerWidth));
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  const reduce = useReducedMotion();
+  const current = PARTS[ORDER[front].id];
+
+  if (reduce) {
+    return (
+      <section className="chapter" aria-label="The team">
+        <Reveal className="section-title" text="Eleven parts. One job each." />
+        <ol className="deck-list">
+          {ORDER.map(({ id }, i) => (
+            <li key={id}>
+              <span className="num">{String(i + 1).padStart(2, "0")}</span> <strong>{PARTS[id].name}</strong>: {PARTS[id].short}
+            </li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
+
+  return (
+    <section ref={ref} className="story-team" aria-label="The team">
+      <div className="team-pin">
+        <header className="team-head">
+          <Reveal className="section-title" text="Eleven parts. One job each." />
+          <p className="section-lede">Scroll to deal the deck.</p>
+        </header>
+        <div className="deck" aria-live="polite">
+          <div className="deck-ring">
+            {ORDER.map(({ id }, i) => (
+              <DeckCard key={id} index={i} progress={progress} arc={arc} front={i === front} />
+            ))}
+          </div>
+        </div>
+        <footer className="deck-foot">
+          <ol className="deck-dots" aria-label={`Part ${front + 1} of ${CARDS}: ${current.name}`}>
+            {ORDER.map(({ id }, i) => (
+              <li key={id} className={i === front ? "is-front" : i < front ? "is-past" : ""} />
+            ))}
+          </ol>
+          <a className="link-button" href={href({ page: "how" })}>
+            What each part did in the last real incident
+          </a>
+        </footer>
+      </div>
     </section>
   );
 }

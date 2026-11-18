@@ -11,6 +11,7 @@
 }
 
 .chapter > *,
+.story-team .team-pin > *,
 .story-terminal .terminal-pin > *,
 .story-stack > * {
   pointer-events: auto;
@@ -43,6 +44,190 @@
   padding-left: 18px;
   border-left: 2px solid var(--aurora);
   font-size: var(--step-1);
+  color: #c9d1f0;
+}
+
+/* 2. The team: a deck of cards, pinned while the scroll fans it into a turning ring */
+.story-team {
+  position: relative;
+  height: 460vh;
+  background: rgb(4 7 20 / 0.6);
+}
+
+.team-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 2vh;
+  padding: calc(var(--bar) + 5vh) 0 4vh;
+  overflow: hidden;
+}
+
+.team-head {
+  padding: 0 clamp(16px, 6vw, 96px);
+  display: grid;
+  gap: 8px;
+}
+
+/* The stage: a perspective so the ring has depth, tipped slightly so its top shows. */
+.deck {
+  position: relative;
+  perspective: 1800px;
+  perspective-origin: 50% 35%;
+  display: grid;
+  place-items: center;
+}
+
+/* Cards grow with the page, so on a wide screen the deck still fills it. */
+.deck-ring {
+  /* The card's width; its type is sized from it, so a bigger card has bigger words. */
+  --card-w: clamp(200px, 15vw, 300px);
+  position: relative;
+  width: var(--card-w);
+  aspect-ratio: 23 / 32;
+  transform-style: preserve-3d;
+  transform: rotateX(-5deg);
+}
+
+.deck-card {
+  position: absolute;
+  inset: 0;
+  padding: calc(var(--card-w) * 0.095);
+  border-radius: 20px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgb(143 183 255 / 0.16), transparent 60%),
+    linear-gradient(165deg, rgb(24 33 72 / 0.98), rgb(9 14 36 / 0.98));
+  border: 1px solid rgb(232 237 255 / 0.16);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.08) inset,
+    0 30px 60px -24px rgb(0 0 0 / 0.85);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+
+.deck-card.is-front {
+  border-color: rgb(232 237 255 / 0.55);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.12) inset,
+    0 0 0 1px rgb(232 237 255 / 0.12),
+    0 40px 90px -20px rgb(143 183 255 / 0.45);
+}
+
+.deck-index {
+  font-family: var(--display);
+  font-size: calc(var(--card-w) * 0.3);
+  font-weight: 600;
+  line-height: 0.85;
+  letter-spacing: -0.07em;
+  background: linear-gradient(180deg, rgb(232 237 255 / 0.5), rgb(232 237 255 / 0.04));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The part's colour, as a soft light in the card's corner. */
+.deck-glow {
+  position: absolute;
+  top: 26px;
+  right: 24px;
+  width: 12px;
+  height: 12px;
+}
+
+.deck-glow::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: inherit;
+  filter: blur(12px);
+  opacity: 0.8;
+}
+
+.deck-stage {
+  margin-top: auto;
+  padding-top: calc(var(--card-w) * 0.28);
+  color: var(--sodium);
+  font-size: max(12px, calc(var(--card-w) * 0.048));
+  font-weight: 600;
+}
+
+.deck-card h3 {
+  font-size: calc(var(--card-w) * 0.105);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.deck-card p {
+  color: #c9d1f0;
+  line-height: 1.5;
+  font-size: max(13px, calc(var(--card-w) * 0.06));
+}
+
+.deck-card.kind-human {
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgb(255 165 61 / 0.28), transparent 60%),
+    linear-gradient(165deg, rgb(52 34 16 / 0.98), rgb(14 14 30 / 0.98));
+  border-color: rgb(255 165 61 / 0.5);
+}
+
+.deck-card.kind-code {
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgb(111 227 200 / 0.2), transparent 60%),
+    linear-gradient(165deg, rgb(14 40 44 / 0.98), rgb(9 14 36 / 0.98));
+}
+
+.deck-card.kind-ml {
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgb(255 165 61 / 0.18), transparent 60%),
+    linear-gradient(165deg, rgb(30 30 60 / 0.98), rgb(9 14 36 / 0.98));
+}
+
+.deck-foot {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.deck-dots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.deck-dots li {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition: background 0.3s, transform 0.3s;
+}
+
+.deck-dots li.is-past {
+  background: var(--haze);
+}
+
+.deck-dots li.is-front {
+  background: var(--starlight);
+  transform: scale(1.5);
+  box-shadow: 0 0 10px var(--starlight);
+}
+
+.deck-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
   color: #c9d1f0;
 }
 
@@ -437,6 +622,10 @@
   .numbers {
     grid-template-columns: 1fr;
   }
+
+  .deck-ring {
+    --card-w: 180px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -447,6 +636,20 @@
 
 /* Laptop screens are short: keep the pinned sections inside the window. */
 @media (max-height: 820px) {
+  .team-pin {
+    gap: 3vh;
+    padding-top: calc(var(--bar) + 4vh);
+    padding-bottom: 4vh;
+  }
+
+  .team-head .section-lede {
+    display: none;
+  }
+
+  .deck-ring {
+    --card-w: clamp(190px, 14vw, 250px);
+  }
+
   .terminal {
     height: min(72vh, 520px);
   }

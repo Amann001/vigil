@@ -10,8 +10,7 @@ import { href, type Route } from "../lib/route";
 import type { Situation } from "../lib/state";
 import { homeScroll } from "../lib/scroll";
 import type { InvestigationSummary, SystemView } from "../lib/types";
-import { FinalCall, Numbers, Problem, Shot, Stack, Steps, Terminal } from "./HomeStory";
-import { Team } from "./TeamStack";
+import { FinalCall, Numbers, Problem, Shot, Stack, Steps, Team, Terminal } from "./HomeStory";
 import "./home.css";
 
 const FILM = `${import.meta.env.BASE_URL}film/vigil-demo.mp4`;
